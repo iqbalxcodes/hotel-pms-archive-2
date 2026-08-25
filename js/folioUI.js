@@ -80,14 +80,14 @@ const FolioUI = {
         if (isEdit) {
 
             editControls = `
-                <button class="folio-icon-btn folio-icon-confirm require-auth" title="Save" onclick="folioSaveEdit('${c}')">✓</button>
+                <button class="folio-icon-btn folio-icon-confirm auth-required require-auth" title="Save" onclick="folioSaveEdit('${c}')">✓</button>
                 <button class="folio-icon-btn" title="Cancel" onclick="folioCancelEdit('${c}')">✕</button>
             `;
 
         } else {
 
             editControls = `
-                ${!isClosed ? `<button class="folio-icon-btn require-auth" title="Edit Folio" onclick="folioEnterEdit('${c}')">✎</button>` : ""}
+                ${!isClosed ? `<button class="folio-icon-btn auth-required require-auth" title="Edit Folio" onclick="folioEnterEdit('${c}')">✎</button>` : ""}
                 <button class="folio-icon-btn ${isHistory ? "folio-icon-active" : ""}" title="Folio Activity" onclick="folioToggleHistory('${c}')">◷</button>
             `;
 
@@ -207,12 +207,12 @@ const FolioUI = {
             <div class="folio-table-scroll">
                 <table class="folio-table">
                     <colgroup>
-                        <col style="width:36px">
-                        <col style="width:60px">
-                        <col style="width:200px">
-                        <col style="width:80px">
-                        <col style="width:110px">
-                        <col style="width:120px">
+                        <col style="width:26px">
+                        <col style="width:42px">
+                        <col style="width:130px">
+                        <col style="width:44px">
+                        <col style="width:78px">
+                        <col style="width:88px">
                     </colgroup>
                     <thead>
                         <tr>
@@ -322,7 +322,7 @@ const FolioUI = {
                         onkeyup="folioServiceInputKeyup('${c}', this)">
                     <div id="${this.fid(c, "folioServiceSuggestions")}" class="folio-suggestions"></div>
                 </div>
-                <button class="folio-btn require-auth" onclick="folioApplyNewService('${c}')">Apply</button>
+                <button class="folio-btn auth-required require-auth" onclick="folioApplyNewService('${c}')">Apply</button>
             </div>
         `;
 
@@ -435,7 +435,7 @@ const FolioUI = {
 
         return `
             <div class="folio-footer">
-                <button class="folio-btn require-auth" onclick="folioOpenPaymentView('${c}')">Take Payment</button>
+                <button class="folio-btn auth-required require-auth" onclick="folioOpenPaymentView('${c}')">Take Payment</button>
                 <div class="folio-balance ${statusClass}">
                     Balance: ${folioFormatCurrency(balance)} <span class="folio-balance-status">${statusLabel}</span>
                 </div>
@@ -451,10 +451,10 @@ const FolioUI = {
         return `
             <div class="folio-footer folio-footer-selection">
                 <span class="folio-selection-count">${count} selected</span>
-                <button class="folio-btn require-auth" onclick="folioConfirmDelete('${c}')">Delete</button>
-                <button class="folio-btn require-auth" onclick="folioShowAction('${c}', 'move')">Move</button>
-                <button class="folio-btn require-auth" onclick="folioShowAction('${c}', 'split')">Split</button>
-                <button class="folio-btn require-auth" onclick="folioShowAction('${c}', 'discount')">Apply Discount</button>
+                <button class="folio-btn auth-required require-auth" onclick="folioConfirmDelete('${c}')">Delete</button>
+                <button class="folio-btn auth-required require-auth" onclick="folioShowAction('${c}', 'move')">Move</button>
+                <button class="folio-btn auth-required require-auth" onclick="folioShowAction('${c}', 'split')">Split</button>
+                <button class="folio-btn auth-required require-auth" onclick="folioShowAction('${c}', 'discount')">Apply Discount</button>
                 <button class="folio-btn folio-btn-plain" onclick="folioClearSelection('${c}')">Cancel</button>
             </div>
         `;
@@ -472,7 +472,7 @@ const FolioUI = {
                 <input id="${this.fid(c, "folioMoveReservation")}" type="text" placeholder="Reservation (blank = current)"
                     class="folio-inline-input">
                 <select id="${this.fid(c, "folioMoveFolioSelect")}" class="folio-inline-input">${folioOptions}</select>
-                <button class="folio-btn require-auth" onclick="folioSubmitMove('${c}')">Apply</button>
+                <button class="folio-btn auth.required require-auth" onclick="folioSubmitMove('${c}')">Apply</button>
                 <button class="folio-btn folio-btn-plain" onclick="folioCancelAction('${c}')">Cancel</button>
             </div>
         `;
@@ -495,7 +495,7 @@ const FolioUI = {
                 <span class="folio-footer-label">to</span>
                 <input id="${this.fid(c, "folioSplitReservation")}" type="text" placeholder="Reservation (blank = current)" class="folio-inline-input">
                 <select id="${this.fid(c, "folioSplitFolioSelect")}" class="folio-inline-input">${folioOptions}</select>
-                <button class="folio-btn require-auth" onclick="folioSubmitSplit('${c}')">Apply</button>
+                <button class="folio-btn auth-required require-auth" onclick="folioSubmitSplit('${c}')">Apply</button>
                 <button class="folio-btn folio-btn-plain" onclick="folioCancelAction('${c}')">Cancel</button>
             </div>
         `;
@@ -514,7 +514,7 @@ const FolioUI = {
                     <option value="price">Price</option>
                 </select>
                 <input id="${this.fid(c, "folioDiscountBasisValue")}" type="number" step="0.01" placeholder="Value" class="folio-inline-input">
-                <button class="folio-btn require-auth" onclick="folioSubmitDiscount('${c}')">Apply</button>
+                <button class="folio-btn auth-required require-auth" onclick="folioSubmitDiscount('${c}')">Apply</button>
                 <button class="folio-btn folio-btn-plain" onclick="folioCancelAction('${c}')">Cancel</button>
             </div>
         `;
@@ -550,7 +550,7 @@ const FolioUI = {
                 </div>
                 <div class="folio-payment-row">
                     <label>Cashiered By</label>
-                    <input id="${this.fid(c, "fp_cashiered_by")}" type="text" class="folio-inline-input" value="${escapeHtmlSimple(draft.cashiered_by || "")}">
+                    <input id="${this.fid(c, "fp_cashiered_by")}" type="text" class="folio-inline-input" value="${escapeHtmlSimple(draft.cashiered_by || "")}" readonly>
                 </div>
                 <div class="folio-payment-row">
                     <label>Payment Method</label>
@@ -567,7 +567,7 @@ const FolioUI = {
                 </div>
                 <div class="folio-payment-actions">
                     <button class="folio-btn folio-btn-plain" onclick="folioCancelPayment('${c}')">Cancel</button>
-                    <button class="folio-btn folio-icon-confirm require-auth" onclick="folioSubmitPayment('${c}')">Pay</button>
+                    <button class="folio-btn folio-icon-confirm auth-required require-auth" onclick="folioSubmitPayment('${c}')">Pay</button>
                 </div>
             </div>
         `;

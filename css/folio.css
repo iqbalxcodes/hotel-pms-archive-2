@@ -151,7 +151,7 @@
 
 .folio-table th {
     text-align: left;
-    padding: 6px 8px;
+    padding: 5px 5px;
     background: #fafafa;
     border-bottom: 1px solid #ddd;
     font-size: 12px;
@@ -162,7 +162,7 @@
 }
 
 .folio-table td {
-    padding: 6px 8px;
+    padding: 5px 5px;
     border-bottom: 1px solid #f0f0f0;
     font-size: 13px;
     white-space: nowrap;
