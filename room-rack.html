@@ -9,7 +9,7 @@
 </head>
 <body>
     
-    <h1>Hotel PMS</h1>
+    <div id="pageHeaderBar" class="page-header-bar"></div>
     
     <div id="pageNavigation" data-page="room-rack"></div>
     <div class="table-container detail-card rack-page">
@@ -30,10 +30,6 @@
                     <button class="rack-view-btn" data-mode="30" onclick="rackSetViewMode('30')">30D</button>
                     <button class="rack-view-btn" data-mode="auto" onclick="rackSetViewMode('auto')">Auto</button>
                 </div>
-            </div>
-
-            <div class="header-clock">
-                <span id="clock"></span>
             </div>
 
         </div>
@@ -81,6 +77,8 @@
     <script src="js/roomAvailability.js"></script>
     <script src="js/roomRack.js"></script>
     <script src="js/developmentStatusSimulator.js"></script>
+    <script src="js/pageHeader.js"></script>
+    <script>initPageHeader();</script>
 
 </body>
 </html>

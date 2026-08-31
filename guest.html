@@ -8,7 +8,7 @@
 </head>
 <body>
 
-    <h1>Hotel PMS</h1>
+    <div id="pageHeaderBar" class="page-header-bar"></div>
     
     <div id="pageNavigation" data-page="guests"></div>
     <div id="addGuestPanel" style="display: none;">
@@ -57,11 +57,6 @@
 
             <!-- CENTER (kosong — guest tidak punya date scope/mode) -->
             <div class="header-menu"></div>
-
-            <!-- RIGHT -->
-            <div class="header-clock">
-                <span id="clock"></span>
-            </div>
 
         </div>
 
@@ -175,6 +170,8 @@
     <script src="js/guestFilter.js"></script>
     <script src="js/guestUI.js"></script>
     <script src="js/guest.js"></script>
+    <script src="js/pageHeader.js"></script>
+    <script>initPageHeader();</script>
 
 </body>
 </html>

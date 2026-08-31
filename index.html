@@ -8,7 +8,7 @@
 </head>
 <body>
 
-    <h1>Hotel PMS</h1>
+    <div id="pageHeaderBar" class="page-header-bar"></div>
     <div id="pageNavigation" data-page="reservations"></div>
     <div id="addReservationPanel" style="display: none;">
         <h2>Add Reservation</h2>
@@ -74,10 +74,6 @@
                 <button onclick="changeDate(1)">▶</button>
             </div>
 
-            <!-- RIGHT: Pojok Kanan -->
-            <div class="header-clock">
-                <span id="clock"></span>
-            </div>
 
         </div>
 
@@ -224,6 +220,8 @@
     <script src="js/reservationDetail.js"></script>
     <script src="js/bulkEdit.js"></script>
     <script src="js/generator.js"></script>
+    <script src="js/pageHeader.js"></script>
+    <script>initPageHeader();</script>
 
     <script src="js/export.js"></script>
     <script src="js/developmentStatusSimulator.js"></script>

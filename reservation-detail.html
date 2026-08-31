@@ -9,7 +9,7 @@
 </head>
 <body>
 
-    <h1>Hotel PMS</h1>
+    <div id="pageHeaderBar" class="page-header-bar"></div>
 
     <!-- Container Utama Bertipe Kartu / Detail-Card (sama seperti reservation list) -->
     <div class="table-container detail-card">
@@ -24,11 +24,6 @@
             <!-- CENTER (kosong, mengikuti pola halaman lain) -->
             <div class="header-menu"></div>
 
-            <!-- RIGHT: posisi bekas tombol pensil -> jadi status reservation -->
-            <div class="header-clock">
-                <span id="statusBadge" class="status-badge">-</span>
-                <span id="clock"></span>
-            </div>
 
         </div>
 
@@ -236,6 +231,8 @@
     <script src="js/folio.js"></script>
     <script src="js/folioUI.js"></script>
     <script src="js/reservationDetail.js"></script>
+    <script src="js/pageHeader.js"></script>
+    <script>initPageHeader();</script>
 
 </body>
 </html>
