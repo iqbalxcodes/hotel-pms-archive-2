@@ -342,30 +342,29 @@ function sbRenderFooter() {
 
     if (!sbCustomizing) {
         footer.innerHTML = `
-            <div class="sb-footer-row">
-                <button class="sb-footer-btn" id="sbCreateGroupBtn" title="Create Group">
-                    <span class="sb-label">Group</span>
-                </button>
-                <button class="sb-footer-btn ${sbShowHidden ? "sb-active-toggle" : ""}" id="sbShowHiddenBtn" title="Show Hidden">
-                    <span class="sb-label">Hidden</span>
-                </button>
-                <button class="sb-footer-btn sb-apply-btn" id="sbApplyBtn" title="Apply">
-                    <span class="sb-label">Apply</span>
-                </button>
-            </div>
+            <button class="sb-footer-btn" id="sbCustomizeBtn">
+                ${sbIconSvg(SB_CUSTOMIZE_ICON)}<span class="sb-label">Customize navigation</span>
+            </button>
         `;
+        document.getElementById("sbCustomizeBtn").onclick = () => {
+            if (sbMode === "icon") sbSetMode("full");
+            sbCustomizing = true;
+            sbRender();
+        };
+        sbRenderIcons();
+        return;
     }
 
     footer.innerHTML = `
         <div class="sb-footer-row">
             <button class="sb-footer-btn" id="sbCreateGroupBtn" title="Create Group">
-                ${sbIconSvg("plus")}<span class="sb-label">Group</span>
+                <span class="sb-label">Group</span>
             </button>
             <button class="sb-footer-btn ${sbShowHidden ? "sb-active-toggle" : ""}" id="sbShowHiddenBtn" title="Show Hidden">
-                ${sbIconSvg(sbShowHidden ? "eye" : "eye-off")}<span class="sb-label">Hidden</span>
+                <span class="sb-label">Hidden</span>
             </button>
             <button class="sb-footer-btn sb-apply-btn" id="sbApplyBtn" title="Apply">
-                ${sbIconSvg("check")}<span class="sb-label">Apply</span>
+                <span class="sb-label">Apply</span>
             </button>
         </div>
     `;
