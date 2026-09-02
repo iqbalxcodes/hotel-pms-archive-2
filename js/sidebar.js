@@ -8,7 +8,7 @@ const SB_KEY_WIDTH = "ph_sidebar_width";
 
 const SB_DEFAULT_STRUCTURE = [
     { id: "grp-operations", label: "OPERATIONS", icon: "layout-grid", items: [
-        { id: "nav-dashboard", label: "Dashboard", icon: "layout-dashboard", href: "dashboard.html" },
+        { id: "nav-dashboard", label: "Dashboard", icon: "layout-dashboard", href: "index.html" },
         { id: "nav-reservations", label: "Reservations", icon: "calendar-check", href: "reservation.html" },
         { id: "nav-rooms", label: "Rooms", icon: "bed", href: "room.html" },
         { id: "nav-guests", label: "Guests", icon: "users", href: "guest.html" }
