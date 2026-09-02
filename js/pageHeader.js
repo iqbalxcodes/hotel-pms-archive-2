@@ -1,7 +1,10 @@
 // ======================================================
 // pageHeader.js
 // Global header: hamburger | avatar | logo | search | notif | add | more
+// + workspace tab bar (#wsTabbar) rendered below it.
 // Order draggable, persisted in localStorage.
+// Skip entirely inside iframe (child page opened by shell
+// already gets chrome from shell's own header).
 // ======================================================
 
 const PH_ORDER_KEY = "ph_header_order";
@@ -131,10 +134,24 @@ function phRender() {
         return `<div class="ph-item" data-key="${key}" draggable="true" ${widthStyle}>${def.html}</div>`;
     }).join("");
 
-    bar.innerHTML = `<div class="ph-header" id="phHeaderRow">${itemsHtml}</div>`;
+    // baris atas = header lama (persis), baris bawah baru = tab workspace
+    bar.innerHTML = `
+        <div class="ph-header" id="phHeaderRow">${itemsHtml}</div>
+        <div class="ws-tabbar" id="wsTabbar">
+            <button class="ws-tab-arrow" id="wsArrowLeft">‹</button>
+            <div class="ws-tab-scroll-wrap">
+                <div class="ws-tab-scroll" id="wsTabScroll"></div>
+                <div class="ws-tab-fade-right" id="wsFadeRight"></div>
+            </div>
+            <button class="ws-tab-arrow" id="wsArrowRight">›</button>
+            <button class="ws-kebab" id="wsKebab">⋮</button>
+        </div>
+    `;
 
     phLoadLucide(() => lucide.createIcons());
     phBindDrag();
+
+    if (window.Workspace) Workspace.init();
 }
 
 function phBindDrag() {
@@ -208,6 +225,7 @@ function phAction(name) {
 }
 
 function initPageHeader() {
+    if (window.self !== window.top) return; // di dalam iframe shell, skip
     phInjectStyle();
     phRender();
 }
