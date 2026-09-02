@@ -1358,3 +1358,36 @@ h1 {
     border-radius: 50%;
     padding: 1px 2px;
 }
+
+.page-header-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.page-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 16px;
+}
+
+.page-header-right {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.page-gear-btn {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; font-size: 15px; color: #666;
+    text-decoration: none; cursor: pointer;
+}
+.page-gear-btn:hover { background: #eee; color: #222; }
+.page-header-clock {
+    font-size: 13px; color: #444; font-variant-numeric: tabular-nums;
+    white-space: nowrap; display: flex; gap: 6px;
+}
+.page-greeting { font-size: 18px; font-weight: 600; color: #222; }

@@ -9,7 +9,7 @@ const SB_KEY_WIDTH = "ph_sidebar_width";
 const SB_DEFAULT_STRUCTURE = [
     { id: "grp-operations", label: "OPERATIONS", icon: "layout-grid", items: [
         { id: "nav-dashboard", label: "Dashboard", icon: "layout-dashboard", href: "dashboard.html" },
-        { id: "nav-reservations", label: "Reservations", icon: "calendar-check", href: "index.html" },
+        { id: "nav-reservations", label: "Reservations", icon: "calendar-check", href: "reservation.html" },
         { id: "nav-rooms", label: "Rooms", icon: "bed", href: "room.html" },
         { id: "nav-guests", label: "Guests", icon: "users", href: "guest.html" }
     ]},
@@ -146,7 +146,6 @@ function sbInjectStyle() {
         .sb-apply-btn:hover { background: #0d47a1 !important; }
         .sb-active-toggle { background: #e3f2fd !important; color: #1565c0 !important; }
 
-        /* customize mode: boundary box putus-putus */
         .sb-customizing .sb-item,
         .sb-customizing .sb-group-header {
             border: 1px dashed rgba(0,0,0,.15);
@@ -178,16 +177,14 @@ function sbInjectStyle() {
             border-bottom: 1px dashed transparent;
         }
         .sb-customizing .sb-label-edit { border-bottom-color: #bbb; }
-        .sb-drag-handle { flex: none; cursor: grab; color: #bbb; display: flex; }
-        .sb-drag-handle svg { width: 14px; height: 14px; }
         .sb-drag-handle { flex: none; cursor: grab; color: #bbb; display: flex; touch-action: none; }
+        .sb-drag-handle svg { width: 14px; height: 14px; }
         .sb-item.sb-dragging, .sb-group.sb-dragging { opacity: .4; }
         .sb-item.sb-drop-before { border-top: 2px solid #1565c0; }
         .sb-item.sb-drop-after { border-bottom: 2px solid #1565c0; }
         .sb-group.sb-drop-before { border-top: 2px solid #1565c0; }
         .sb-group.sb-drop-after { border-bottom: 2px solid #1565c0; }
 
-        /* label: blur/fade overflow, jadi running text on hover */
         .sb-label {
             display: inline-block; overflow: hidden; white-space: nowrap;
             max-width: 100%; min-width: 0; vertical-align: bottom;
@@ -198,7 +195,6 @@ function sbInjectStyle() {
             mask-image: linear-gradient(to right, black 85%, transparent 100%);
         }
 
-        /* icon picker bubble */
         .sb-icon-picker {
             position: fixed; z-index: 200; width: 260px; max-height: 300px;
             background: #fff; border: 1px solid #ccc; border-radius: 10px;
@@ -296,7 +292,6 @@ function sbRender() {
 
 function sbRenderGroup(g) {
     const hidden = !!g.hidden;
-
     if (hidden && (!sbCustomizing || !sbShowHidden)) return "";
 
     const itemsHtml = g.items.map(it => sbRenderItem(it, g.id)).join("");
@@ -318,14 +313,18 @@ function sbRenderGroup(g) {
     `;
 }
 
+// --- PATCHED: onclick opens a workspace tab instead of navigating,
+// active state now follows window.__sbActivePage (set by Workspace) ---
 function sbRenderItem(it, groupId) {
     const hidden = !!it.hidden;
     if (hidden && (!sbCustomizing || !sbShowHidden)) return "";
 
-    const active = location.pathname.split("/").pop() === it.href;
+    const active = it.id === window.__sbActivePage;
 
     return `
-        <a class="sb-item ${active ? "sb-active" : ""} ${hidden ? "sb-hidden-el" : ""}" href="${sbCustomizing ? "javascript:void(0)" : it.href}"
+        <a class="sb-item ${active ? "sb-active" : ""} ${hidden ? "sb-hidden-el" : ""}"
+           href="${sbCustomizing ? "javascript:void(0)" : it.href}"
+           onclick="return sbHandleItemClick(event,'${it.href}',${JSON.stringify(it.label)},'${it.id}')"
            data-item-id="${it.id}" data-group-id="${groupId}" draggable="${!sbCustomizing}" title="${it.label}">
             ${sbCustomizing ? `<span class="sb-drag-handle">${sbIconSvg("grip-vertical")}</span>` : ""}
             ${sbCustomizing ? `<button class="sb-icon-btn-mini" data-icon-target="item:${it.id}">${sbIconSvg(it.icon)}</button>` : sbIconSvg(it.icon)}
@@ -336,6 +335,24 @@ function sbRenderItem(it, groupId) {
         </a>
     `;
 }
+
+// --- NEW: sidebar click -> open/activate a workspace tab ---
+function sbHandleItemClick(e, href, label, itemId) {
+    if (sbCustomizing) return false;
+    if (!window.Workspace) return true; // fallback: standalone page, navigate normally
+    e.preventDefault();
+    Workspace.openTab({ title: label, url: href, page: itemId });
+    return false;
+}
+
+// --- NEW: called by Workspace.activate() so sidebar highlight follows the active tab ---
+function sbSetActiveByPage(page) {
+    window.__sbActivePage = page;
+    document.querySelectorAll(".sb-item").forEach(x => {
+        x.classList.toggle("sb-active", x.dataset.itemId === page);
+    });
+}
+window.sbSetActiveByPage = sbSetActiveByPage;
 
 function sbRenderFooter() {
     const footer = document.getElementById("sbFooter");
@@ -384,8 +401,9 @@ function sbRenderFooter() {
     sbRenderIcons();
 }
 
+// --- PATCHED: push #wsContent instead of .table-container (shell mode) ---
 function sbApplyContentPush() {
-    const content = document.querySelector(".table-container");
+    const content = document.getElementById("wsContent") || document.querySelector(".table-container");
     if (!content) return;
     if (sbMode === "hidden" || (sbMode === "full" && window.innerWidth <= 700)) {
         content.style.marginLeft = "";
@@ -585,7 +603,7 @@ function sbApplyLabelFade() {
 }
 
 // ------------------------------------------------------
-// drag & drop reorder
+// drag & drop reorder (customize mode)
 // ------------------------------------------------------
 
 function sbBindDrag() {
@@ -709,7 +727,11 @@ function sbSyncStructureFromDom() {
 // init
 // ------------------------------------------------------
 
+// --- PATCHED: skip entirely if we're inside an iframe (a page opened
+// by the shell already has its own chrome from the shell's sidebar) ---
 function initSidebar() {
+    if (window.self !== window.top) return;
+
     sbInjectStyle();
     sbLoad();
     sbRender();
