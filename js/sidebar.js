@@ -107,6 +107,10 @@ function sbInjectStyle() {
         .sb-mode-icon .sb-group-header { justify-content: center; padding: 8px 0; }
         .sb-mode-icon .sb-group-header .sb-label { display: none; }
 
+        .sb-mode-icon .sb-group-header .sb-edit-row,
+        .sb-mode-icon .sb-item { justify-content: center; }
+        .sb-mode-icon .sb-edit-row { flex: none; }
+
         .sb-item {
             display: flex; align-items: center; gap: 10px;
             padding: 8px 14px; margin: 1px 6px; border-radius: 6px;
@@ -186,9 +190,11 @@ function sbInjectStyle() {
         .sb-label {
             display: inline-block; overflow: hidden; white-space: nowrap;
             max-width: 100%; min-width: 0; vertical-align: bottom;
+            transition-property: transform;
+        }
+        .sb-label-fade {
             -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
             mask-image: linear-gradient(to right, black 85%, transparent 100%);
-            transition-property: transform;
         }
 
         /* icon picker bubble */
@@ -269,6 +275,7 @@ function sbRender() {
     sbBindResize();
     sbBindCustomizeInputs();
     sbBindMarquee();
+    sbApplyLabelFade();
 
     if (sbMode === "full" && window.innerWidth <= 700) {
         let bd = document.getElementById("sbBackdrop");
@@ -335,13 +342,18 @@ function sbRenderFooter() {
 
     if (!sbCustomizing) {
         footer.innerHTML = `
-            <button class="sb-footer-btn" id="sbCustomizeBtn">
-                ${sbIconSvg(SB_CUSTOMIZE_ICON)}<span class="sb-label">Customize navigation</span>
-            </button>
+            <div class="sb-footer-row">
+                <button class="sb-footer-btn" id="sbCreateGroupBtn" title="Create Group">
+                    <span class="sb-label">Group</span>
+                </button>
+                <button class="sb-footer-btn ${sbShowHidden ? "sb-active-toggle" : ""}" id="sbShowHiddenBtn" title="Show Hidden">
+                    <span class="sb-label">Hidden</span>
+                </button>
+                <button class="sb-footer-btn sb-apply-btn" id="sbApplyBtn" title="Apply">
+                    <span class="sb-label">Apply</span>
+                </button>
+            </div>
         `;
-        document.getElementById("sbCustomizeBtn").onclick = () => { sbCustomizing = true; sbRender(); };
-        sbRenderIcons();
-        return;
     }
 
     footer.innerHTML = `
@@ -432,6 +444,7 @@ function sbBindResize() {
             sbWidth = w;
             sidebar.style.width = w + "px";
             sbApplyContentPush();
+            sbApplyLabelFade();
         };
         const onUp = () => {
             sidebar.classList.remove("sb-resizing");
@@ -515,7 +528,7 @@ function sbOpenIconPicker(anchor, ref) {
     function renderGrid(filter) {
         const list = filter
             ? allIcons.filter(n => n.includes(filter.toLowerCase()))
-            : allIcons.slice(0, 200);
+            : allIcons;
         grid.innerHTML = list.map(n => `<button data-icon="${n}">${sbIconSvg(n)}</button>`).join("");
         sbRenderIcons();
         grid.querySelectorAll("button").forEach(b => {
@@ -549,20 +562,22 @@ function sbBindMarquee() {
     document.querySelectorAll(".sb-label").forEach(el => {
         el.addEventListener("mouseenter", () => {
             const over = el.scrollWidth - el.clientWidth;
-            if (over <= 0) return;
-            el.style.maskImage = "none";
-            el.style.webkitMaskImage = "none";
+            if (over <= 1) return;
+            el.classList.remove("sb-label-fade");
             el.style.transitionDuration = Math.max(0.4, over / 40) + "s";
             el.style.transform = `translateX(-${over}px)`;
         });
         el.addEventListener("mouseleave", () => {
             el.style.transform = "translateX(0)";
             el.style.transitionDuration = ".3s";
-            setTimeout(() => {
-                el.style.maskImage = "";
-                el.style.webkitMaskImage = "";
-            }, 300);
+            setTimeout(sbApplyLabelFade, 300);
         });
+    });
+}
+
+function sbApplyLabelFade() {
+    document.querySelectorAll(".sb-label").forEach(el => {
+        el.classList.toggle("sb-label-fade", el.scrollWidth - el.clientWidth > 1);
     });
 }
 
