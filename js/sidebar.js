@@ -237,9 +237,18 @@ function sbRenderIcons() { if (window.lucide) window.lucide.createIcons({ nameAt
 // render
 // ------------------------------------------------------
 
+function sbGetMount() {
+    let mount = document.getElementById("sbMount");
+    if (!mount) {
+        mount = document.createElement("div");
+        mount.id = "sbMount";
+        document.body.appendChild(mount);
+    }
+    return mount;
+}
+
 function sbRender() {
-    const mount = document.getElementById("pageNavigation");
-    if (!mount) return;
+    const mount = sbGetMount();
 
     const modeClass = sbMode === "full" ? "sb-mode-full" : sbMode === "icon" ? "sb-mode-icon" : "sb-mode-hidden";
     const widthStyle = sbMode === "full" ? `style="width:${sbWidth}px"` : "";
