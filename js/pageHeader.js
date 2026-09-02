@@ -1,91 +1,213 @@
 // ======================================================
 // pageHeader.js
-// Header bar bersama: greeting (kiri) + gear icon + jam
-// live (kanan). SATU implementasi dipakai di semua halaman
-// — jangan duplikasi logic ini di file lain.
-//
-// HTML cukup butuh:
-//   <div id="pageHeaderBar" class="page-header-bar"></div>
-// Isi-nya di-generate lewat JS di sini.
-//
-// initPageHeader() aman dipanggil berkali-kali: selalu
-// rebuild innerHTML & clear timer lama dulu.
+// Global header: hamburger | avatar | logo | search | notif | add | more
+// Order draggable, persisted in localStorage.
 // ======================================================
 
-let clockIntervalHandle;
-let greetingTimerHandle;
+const PH_ORDER_KEY = "ph_header_order";
+const PH_DEFAULT_ORDER = ["hamburger", "avatar", "logo", "search", "notification", "add", "more"];
 
-function initPageHeader() {
+const PH_ITEMS = {
+    hamburger: {
+        width: "56px",
+        html: `<button class="ph-icon-btn ph-hamburger-btn" title="Menu" onclick="phToggleNav()"><i data-lucide="menu"></i></button>`
+    },
+    avatar: {
+        width: "44px",
+        html: `<button class="ph-icon-btn ph-avatar-btn" title="Account" onclick="phAvatarClick()"><i data-lucide="circle-user"></i></button>`
+    },
+    logo: {
+        width: "140px 160px",
+        html: `<a href="index.html" class="ph-logo"><img src="iqbalpms.png" alt="Hotel PMS"></a>`
+    },
+    search: {
+        width: "flex",
+        html: `<div class="ph-search"><i data-lucide="search"></i><input id="phSearchInput" type="text" placeholder="Search..." oninput="phSearch(this.value)"></div>`
+    },
+    notification: {
+        width: "44px",
+        html: `<button class="ph-icon-btn" title="Notifications" onclick="phAction('notification')"><i data-lucide="bell"></i></button>`
+    },
+    add: {
+        width: "44px",
+        html: `<button class="ph-icon-btn" title="Add" onclick="phAction('add')"><i data-lucide="plus"></i></button>`
+    },
+    more: {
+        width: "44px",
+        html: `<button class="ph-icon-btn" title="More" onclick="phAction('more')"><i data-lucide="ellipsis-vertical"></i></button>`
+    }
+};
+
+function phLoadOrder() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(PH_ORDER_KEY));
+        if (Array.isArray(saved) && saved.length === PH_DEFAULT_ORDER.length) return saved;
+    } catch (e) {}
+    return [...PH_DEFAULT_ORDER];
+}
+
+function phSaveOrder(order) {
+    localStorage.setItem(PH_ORDER_KEY, JSON.stringify(order));
+}
+
+function phInjectStyle() {
+    if (document.getElementById("phStyle")) return;
+
+    const style = document.createElement("style");
+    style.id = "phStyle";
+    style.textContent = `
+        #pageHeaderBar { flex: none; }
+        .ph-header {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 12px;
+            border-bottom: 1px solid #ddd;
+            background: #fff;
+            box-sizing: border-box;
+        }
+        .ph-item { flex: none; display: flex; align-items: center; height: 100%; cursor: grab; }
+        .ph-item[data-key="search"] { flex: 1 1 auto; min-width: 0; cursor: default; }
+        .ph-item.ph-dragging { opacity: 0.4; }
+        .ph-item.ph-drop-before { border-left: 2px solid #1565c0; }
+        .ph-item.ph-drop-after { border-right: 2px solid #1565c0; }
+
+        .ph-icon-btn {
+            width: 44px; height: 44px;
+            display: flex; align-items: center; justify-content: center;
+            border: none; background: none; border-radius: 8px; cursor: pointer;
+            color: #333;
+        }
+        .ph-icon-btn:hover { background: #f0f0f0; }
+        .ph-hamburger-btn { width: 56px; }
+
+        .ph-logo {
+            display: flex; align-items: center; gap: 6px;
+            text-decoration: none; color: #222; font-weight: 700; font-size: 15px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        .ph-search {
+            width: 100%; height: 40px;
+            display: flex; align-items: center; gap: 8px;
+            background: #f2f3f5; border-radius: 8px; padding: 0 10px;
+            color: #777;
+        }
+        .ph-search input {
+            border: none; background: none; outline: none;
+            font: inherit; width: 100%; color: #222;
+        }
+        .ph-search svg { flex: none; width: 16px; height: 16px; }
+        .ph-icon-btn svg { width: 20px; height: 20px; }
+        .ph-logo img { height: 36px; width: auto; object-fit: contain; }
+    `;
+    document.head.appendChild(style);
+}
+
+function phLoadLucide(cb) {
+    if (window.lucide) { cb(); return; }
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/lucide@latest";
+    s.onload = cb;
+    document.head.appendChild(s);
+}
+
+function phRender() {
     const bar = document.getElementById("pageHeaderBar");
     if (!bar) return;
 
-    bar.innerHTML = `
-        <span id="pageGreeting" class="page-greeting">Loading…</span>
-        <div class="page-header-right">
-            <a href="settings.html" class="page-gear-btn" title="Settings" aria-label="Settings">&#9881;</a>
-            <div class="page-header-clock">
-                <span id="pageClockDate"></span><span id="pageClockTime"></span>
-            </div>
-        </div>
-    `;
+    const order = phLoadOrder();
 
-    renderGreeting();
-    startPageClock();
+    const itemsHtml = order.map(key => {
+        const def = PH_ITEMS[key];
+        if (!def) return "";
+        const widthStyle = def.width === "flex"
+            ? ""
+            : def.width.includes(" ")
+                ? `style="min-width:${def.width.split(" ")[0]};max-width:${def.width.split(" ")[1]};flex:1 1 ${def.width.split(" ")[0]};"`
+                : `style="width:${def.width};flex:0 0 ${def.width};"`;
+
+        return `<div class="ph-item" data-key="${key}" draggable="true" ${widthStyle}>${def.html}</div>`;
+    }).join("");
+
+    bar.innerHTML = `<div class="ph-header" id="phHeaderRow">${itemsHtml}</div>`;
+
+    phLoadLucide(() => lucide.createIcons());
+    phBindDrag();
 }
 
-// Panggil ulang fungsi ini setelah data user/hotel selesai
-// dimuat (mis. dari supabase.js / auth.js), supaya nama
-// tamu/staff yang login ikut muncul di greeting.
-function refreshPageGreeting() {
-    renderGreeting();
+function phBindDrag() {
+    const row = document.getElementById("phHeaderRow");
+    if (!row) return;
+
+    let draggedEl = null;
+
+    row.querySelectorAll(".ph-item").forEach(item => {
+        item.addEventListener("dragstart", () => {
+            draggedEl = item;
+            item.classList.add("ph-dragging");
+        });
+
+        item.addEventListener("dragend", () => {
+            item.classList.remove("ph-dragging");
+            row.querySelectorAll(".ph-item").forEach(el =>
+                el.classList.remove("ph-drop-before", "ph-drop-after"));
+
+            const newOrder = [...row.querySelectorAll(".ph-item")].map(el => el.dataset.key);
+            phSaveOrder(newOrder);
+        });
+
+        item.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            if (item === draggedEl) return;
+
+            const rect = item.getBoundingClientRect();
+            const before = e.clientX < rect.left + rect.width / 2;
+
+            row.querySelectorAll(".ph-item").forEach(el =>
+                el.classList.remove("ph-drop-before", "ph-drop-after"));
+            item.classList.add(before ? "ph-drop-before" : "ph-drop-after");
+        });
+
+        item.addEventListener("drop", (e) => {
+            e.preventDefault();
+            if (item === draggedEl) return;
+
+            const rect = item.getBoundingClientRect();
+            const before = e.clientX < rect.left + rect.width / 2;
+
+            row.insertBefore(draggedEl, before ? item : item.nextSibling);
+        });
+    });
 }
 
-function renderGreeting() {
-    const el = document.getElementById("pageGreeting");
-    if (!el) return;
+// ------------------------------------------------------
+// Action hooks — dispatch events so page-specific scripts
+// (auth.js, navigation.js, dll) can listen and react.
+// ------------------------------------------------------
 
-    clearTimeout(greetingTimerHandle);
+function phToggleNav() {
+    document.body.classList.toggle("ph-nav-open");
+    document.dispatchEvent(new CustomEvent("ph:toggle-nav"));
+}
 
-    // TODO: ganti dua baris ini sesuai variabel global auth
-    // Hotel PMS-mu (yang di-set di js/auth.js atau supabase.js)
-    const hotelName = (window.currentHotel && window.currentHotel.name) || "Hotel PMS";
-    const user = window.currentUser || null;
+function phAvatarClick() {
+    document.dispatchEvent(new CustomEvent("ph:avatar-click"));
+}
 
-    if (!user) {
-        el.textContent = hotelName;
-        return;
+function phSearch(value) {
+    document.dispatchEvent(new CustomEvent("ph:search", { detail: { value } }));
+}
+
+function phAction(name) {
+    document.dispatchEvent(new CustomEvent("ph:action", { detail: { name } }));
+    if (typeof showDevMessage === "function") {
+        showDevMessage(name[0].toUpperCase() + name.slice(1));
     }
-
-    const hour = new Date().getHours();
-    let greeting;
-    if (hour < 12) greeting = "Good Morning";
-    else if (hour < 18) greeting = "Good Afternoon";
-    else greeting = "Good Evening";
-
-    const firstName = (user.full_name || user.name || "").split(" ")[0];
-    el.textContent = firstName ? `${greeting}, ${firstName}!` : hotelName;
-
-    greetingTimerHandle = setTimeout(() => {
-        el.textContent = hotelName;
-    }, 3000);
 }
 
-function startPageClock() {
-    const dateEl = document.getElementById("pageClockDate");
-    const timeEl = document.getElementById("pageClockTime");
-    if (!dateEl && !timeEl) return;
-
-    if (clockIntervalHandle !== undefined) clearInterval(clockIntervalHandle);
-
-    function tick() {
-        const now = new Date();
-        if (dateEl) dateEl.textContent = now.toLocaleDateString("en-US", { day: "2-digit", month: "2-digit", year: "numeric" });
-        if (timeEl) timeEl.textContent = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    }
-
-    tick();
-    clockIntervalHandle = setInterval(tick, 1000);
+function initPageHeader() {
+    phInjectStyle();
+    phRender();
 }
-
-window.initPageHeader = initPageHeader;
-window.refreshPageGreeting = refreshPageGreeting;
