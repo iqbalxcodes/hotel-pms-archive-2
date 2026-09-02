@@ -180,6 +180,7 @@ function sbInjectStyle() {
         .sb-customizing .sb-label-edit { border-bottom-color: #bbb; }
         .sb-drag-handle { flex: none; cursor: grab; color: #bbb; display: flex; }
         .sb-drag-handle svg { width: 14px; height: 14px; }
+        .sb-drag-handle { flex: none; cursor: grab; color: #bbb; display: flex; touch-action: none; }
         .sb-item.sb-dragging, .sb-group.sb-dragging { opacity: .4; }
         .sb-item.sb-drop-before { border-top: 2px solid #1565c0; }
         .sb-item.sb-drop-after { border-bottom: 2px solid #1565c0; }
@@ -271,7 +272,7 @@ function sbRender() {
 
     sbRenderFooter();
     sbRenderIcons();
-    sbBindDrag();
+    if (sbCustomizing) sbBindPointerDrag(); else sbBindDrag();
     sbBindResize();
     sbBindCustomizeInputs();
     sbBindMarquee();
@@ -325,7 +326,7 @@ function sbRenderItem(it, groupId) {
 
     return `
         <a class="sb-item ${active ? "sb-active" : ""} ${hidden ? "sb-hidden-el" : ""}" href="${sbCustomizing ? "javascript:void(0)" : it.href}"
-           data-item-id="${it.id}" data-group-id="${groupId}" draggable="true" title="${it.label}">
+           data-item-id="${it.id}" data-group-id="${groupId}" draggable="${!sbCustomizing}" title="${it.label}">
             ${sbCustomizing ? `<span class="sb-drag-handle">${sbIconSvg("grip-vertical")}</span>` : ""}
             ${sbCustomizing ? `<button class="sb-icon-btn-mini" data-icon-target="item:${it.id}">${sbIconSvg(it.icon)}</button>` : sbIconSvg(it.icon)}
             ${sbCustomizing
@@ -378,12 +379,7 @@ function sbRenderFooter() {
         sbShowHidden = !sbShowHidden;
         sbRender();
     };
-    document.getElementById("sbApplyBtn").onclick = () => {
-        sbCustomizing = false;
-        sbShowHidden = false;
-        sbSaveStructure();
-        sbRender();
-    };
+    document.getElementById("sbApplyBtn").onclick = sbExitCustomize;
 
     sbRenderIcons();
 }
@@ -419,7 +415,15 @@ function sbSetMode(mode) {
     sbUpdateHamburgerIcon();
 }
 
+function sbExitCustomize() {
+    sbCustomizing = false;
+    sbShowHidden = false;
+    sbSaveStructure();
+    sbSetMode("icon");
+}
+
 function sbCycleMode() {
+    if (sbCustomizing) { sbExitCustomize(); return; }
     if (sbMode === "hidden") sbSetMode("full");
     else if (sbMode === "full") sbSetMode("icon");
     else sbSetMode("hidden");
@@ -586,11 +590,9 @@ function sbApplyLabelFade() {
 
 function sbBindDrag() {
     let draggedItem = null;
-    let draggedGroup = null;
 
     document.querySelectorAll(".sb-item").forEach(el => {
-        el.addEventListener("dragstart", (e) => {
-            if (e.target.closest(".sb-hide-btn, .sb-icon-btn-mini, .sb-label-edit")) { e.preventDefault(); return; }
+        el.addEventListener("dragstart", () => {
             draggedItem = el;
             el.classList.add("sb-dragging");
         });
@@ -601,8 +603,7 @@ function sbBindDrag() {
         });
         el.addEventListener("dragover", (e) => {
             if (!draggedItem || draggedItem === el) return;
-            const sameGroup = draggedItem.dataset.groupId === el.dataset.groupId;
-            if (!sameGroup && !sbCustomizing) return;
+            if (draggedItem.dataset.groupId !== el.dataset.groupId) return;
             e.preventDefault();
             const rect = el.getBoundingClientRect();
             const before = e.clientY < rect.top + rect.height / 2;
@@ -612,58 +613,74 @@ function sbBindDrag() {
         el.addEventListener("drop", (e) => {
             e.preventDefault();
             if (!draggedItem || draggedItem === el) return;
-            const sameGroup = draggedItem.dataset.groupId === el.dataset.groupId;
-            if (!sameGroup && !sbCustomizing) return;
+            if (draggedItem.dataset.groupId !== el.dataset.groupId) return;
             const rect = el.getBoundingClientRect();
             const before = e.clientY < rect.top + rect.height / 2;
             el.parentNode.insertBefore(draggedItem, before ? el : el.nextSibling);
-            draggedItem.dataset.groupId = el.dataset.groupId;
         });
     });
+}
 
-    document.querySelectorAll(".sb-group-items").forEach(zone => {
-        zone.addEventListener("dragover", (e) => { if (sbCustomizing) e.preventDefault(); });
-        zone.addEventListener("drop", (e) => {
-            if (!sbCustomizing || !draggedItem) return;
-            e.preventDefault();
-            if (e.target === zone) {
-                zone.appendChild(draggedItem);
-                draggedItem.dataset.groupId = zone.dataset.groupId;
+function sbBindPointerDrag() {
+    document.querySelectorAll(".sb-drag-handle").forEach(handle => {
+        handle.addEventListener("pointerdown", sbPointerDragStart);
+    });
+}
+
+function sbPointerDragStart(e) {
+    e.preventDefault();
+    const handle = e.currentTarget;
+    const itemEl = handle.closest(".sb-item");
+    const groupEl = !itemEl ? handle.closest(".sb-group") : null;
+    const dragEl = itemEl || groupEl;
+    if (!dragEl) return;
+
+    const isItem = !!itemEl;
+    dragEl.classList.add("sb-dragging");
+    handle.setPointerCapture(e.pointerId);
+
+    function onMove(ev) {
+        const target = document.elementFromPoint(ev.clientX, ev.clientY);
+        if (!target) return;
+
+        if (isItem) {
+            const overItem = target.closest(".sb-item");
+            const overZone = target.closest(".sb-group-items");
+            document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("sb-drop-before", "sb-drop-after"));
+
+            if (overItem && overItem !== dragEl) {
+                const rect = overItem.getBoundingClientRect();
+                const before = ev.clientY < rect.top + rect.height / 2;
+                overItem.parentNode.insertBefore(dragEl, before ? overItem : overItem.nextSibling);
+                dragEl.dataset.groupId = overItem.dataset.groupId;
+            } else if (overZone && !overItem) {
+                overZone.appendChild(dragEl);
+                dragEl.dataset.groupId = overZone.dataset.groupId;
             }
-        });
-    });
-
-    if (sbCustomizing) {
-        document.querySelectorAll(".sb-group-header").forEach(el => {
-            el.addEventListener("dragstart", (e) => {
-                if (e.target.closest(".sb-label-edit, .sb-icon-btn-mini, .sb-hide-btn")) { e.preventDefault(); return; }
-                draggedGroup = el.closest(".sb-group");
-                draggedGroup.classList.add("sb-dragging");
-            });
-            el.addEventListener("dragend", () => {
-                draggedGroup?.classList.remove("sb-dragging");
-                document.querySelectorAll(".sb-group").forEach(x => x.classList.remove("sb-drop-before", "sb-drop-after"));
-                sbSyncStructureFromDom();
-            });
-        });
-        document.querySelectorAll(".sb-group").forEach(el => {
-            el.addEventListener("dragover", (e) => {
-                if (!draggedGroup || draggedGroup === el) return;
-                e.preventDefault();
-                const rect = el.getBoundingClientRect();
-                const before = e.clientY < rect.top + rect.height / 2;
-                document.querySelectorAll(".sb-group").forEach(x => x.classList.remove("sb-drop-before", "sb-drop-after"));
-                el.classList.add(before ? "sb-drop-before" : "sb-drop-after");
-            });
-            el.addEventListener("drop", (e) => {
-                if (!draggedGroup || draggedGroup === el) return;
-                e.preventDefault();
-                const rect = el.getBoundingClientRect();
-                const before = e.clientY < rect.top + rect.height / 2;
-                el.parentNode.insertBefore(draggedGroup, before ? el : el.nextSibling);
-            });
-        });
+        } else {
+            const overGroup = target.closest(".sb-group");
+            document.querySelectorAll(".sb-group").forEach(x => x.classList.remove("sb-drop-before", "sb-drop-after"));
+            if (overGroup && overGroup !== dragEl) {
+                const rect = overGroup.getBoundingClientRect();
+                const before = ev.clientY < rect.top + rect.height / 2;
+                overGroup.parentNode.insertBefore(dragEl, before ? overGroup : overGroup.nextSibling);
+            }
+        }
     }
+
+    function onUp() {
+        handle.releasePointerCapture(e.pointerId);
+        handle.removeEventListener("pointermove", onMove);
+        handle.removeEventListener("pointerup", onUp);
+        handle.removeEventListener("pointercancel", onUp);
+        dragEl.classList.remove("sb-dragging");
+        document.querySelectorAll(".sb-item, .sb-group").forEach(x => x.classList.remove("sb-drop-before", "sb-drop-after"));
+        sbSyncStructureFromDom();
+    }
+
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", onUp);
+    handle.addEventListener("pointercancel", onUp);
 }
 
 function sbSyncStructureFromDom() {
