@@ -1,7 +1,6 @@
 // ======================================================
 // workspace.js — tab manager, iframe host per tab
-// FIXED: Chrome-style drag detection (all directions = reorder, 
-//        only pure horizontal = scroll)
+// FIXED: Chrome-style drag with floating ghost preview
 // ======================================================
 
 const Workspace = (function () {
@@ -148,8 +147,7 @@ const Workspace = (function () {
     }
 
     // ==========================================================
-    // CHROME-STYLE DRAG DETECTION
-    // Semua arah kecuali horizontal murni → reorder
+    // CHROME-STYLE DRAG WITH FLOATING GHOST PREVIEW
     // ==========================================================
     function onTabPointerDown(e) {
         const tabEl = e.target.closest(".ws-tab");
@@ -166,11 +164,40 @@ const Workspace = (function () {
         dragEl.classList.add("ws-dragging");
         dragEl.dataset.dragged = "1";
 
+        // --- GHOST: clone tab untuk mengikuti pointer ---
+        let ghost = null;
+        let ghostOffsetX = 0, ghostOffsetY = 0;
+
+        function createGhost() {
+            const rect = dragEl.getBoundingClientRect();
+            ghost = dragEl.cloneNode(true);
+            ghost.classList.add("ws-ghost");
+            ghost.style.position = "fixed";
+            ghost.style.left = rect.left + "px";
+            ghost.style.top = rect.top + "px";
+            ghost.style.width = rect.width + "px";
+            ghost.style.height = rect.height + "px";
+            ghost.style.zIndex = "1000";
+            ghost.style.pointerEvents = "none"; // biar mouse events lewat ke element di bawah
+            ghost.style.opacity = "0.92";
+            ghost.style.transition = "none";
+            document.body.appendChild(ghost);
+            ghostOffsetX = startX - rect.left;
+            ghostOffsetY = startY - rect.top;
+        }
+
+        function updateGhost(x, y) {
+            if (!ghost) return;
+            ghost.style.left = (x - ghostOffsetX) + "px";
+            ghost.style.top = (y - ghostOffsetY) + "px";
+        }
+
+        function removeGhost() {
+            if (ghost) { ghost.remove(); ghost = null; }
+        }
+
         // --- helper: deteksi mode berdasarkan sudut gerakan ---
         function detectMode(dx, dy) {
-            // angle = 0°   → pure horizontal  → scroll
-            // angle = 90°  → pure vertical    → reorder
-            // threshold 25°: gerakan di bawah 25° dari horizontal = scroll
             const angle = Math.atan2(Math.abs(dy), Math.abs(dx)) * (180 / Math.PI);
             return angle < 25 ? "scroll" : "reorder";
         }
@@ -185,13 +212,14 @@ const Workspace = (function () {
             const dx = ev.clientX - startX;
             const dy = ev.clientY - startY;
 
-            // --- mode detection: hanya sekali, di awal ---
+            // --- mode detection ---
             if (!mode) {
                 if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
                     mode = detectMode(dx, dy);
-                    // visual feedback: reorder = tab terangkat
                     if (mode === "reorder") {
                         dragEl.classList.add("ws-reordering");
+                        createGhost();
+                        dragEl.style.opacity = "0.3"; // original tab jadi transparan
                     }
                 }
             }
@@ -199,11 +227,17 @@ const Workspace = (function () {
             if (mode === "scroll") {
                 scrollEl.scrollLeft = startScrollLeft - dx;
             } else if (mode === "reorder") {
+                updateGhost(ev.clientX, ev.clientY);
+
                 const rect = scrollEl.getBoundingClientRect();
                 edgeDir = ev.clientX > rect.right - 44 ? 1 : ev.clientX < rect.left + 44 ? -1 : 0;
 
-                // cari tab yang di-hover di middle point
+                // --- cari tab di bawah ghost ---
+                // Sembunyikan ghost sementara biar elementFromPoint bisa lihat tab di bawahnya
+                if (ghost) ghost.style.visibility = "hidden";
                 const overEl = document.elementFromPoint(ev.clientX, rect.top + rect.height / 2)?.closest(".ws-tab");
+                if (ghost) ghost.style.visibility = "visible";
+
                 if (overEl && overEl !== dragEl) {
                     const r = overEl.getBoundingClientRect();
                     const before = ev.clientX < r.left + r.width / 2;
@@ -221,8 +255,13 @@ const Workspace = (function () {
             document.removeEventListener("pointerup", onUp);
             document.removeEventListener("mousemove", onMove);
             document.removeEventListener("mouseup", onUp);
+
             dragEl.classList.remove("ws-dragging", "ws-reordering");
+            dragEl.style.opacity = "";
             dragEl.dataset.dragged = "0";
+
+            removeGhost();
+
             if (mode === "reorder") syncOrderFromDom();
             updateOverflowUI();
         }
