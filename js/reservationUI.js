@@ -260,6 +260,7 @@ function startClock(){
     const clock =
         document.getElementById("clock");
 
+    if(!clock) return;
 
     function updateClock(){
 
