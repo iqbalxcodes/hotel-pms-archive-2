@@ -76,3 +76,23 @@ async function generateRandomReservations(){
     loadReservations();
 
 }
+
+async function getAvailableRooms(){
+
+    const { data, error } =
+        await supabaseClient
+        .from("rooms")
+        .select(`
+            room_number,
+            room_type,
+            status
+        `);
+
+    if(error){
+        console.error("Failed loading rooms:", error);
+        return [];
+    }
+
+    return data;
+
+}
