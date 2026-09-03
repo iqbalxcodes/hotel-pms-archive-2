@@ -2,12 +2,16 @@
 // tableScrollEdge.js
 // Edge-hover scroll card. Nempel otomatis ke semua .table-scroll
 // yang overflow horizontal. Native scroll manual tetap jalan.
+// position:fixed + koordinat viewport -- card gak ikut kescroll
+// pas isi .table-scroll discroll horizontal.
 // ======================================================
 
 (function(){
 
     const EDGE_ZONE = 32;
     const SCROLL_STEP = 220;
+    const CARD_W = 28;
+    const CARD_H = 36;
 
     function makeCard(side){
 
@@ -15,13 +19,15 @@
         card.className = `table-scroll-edge-card edge-${side}`;
         card.textContent = side === "left" ? "‹" : "›";
         card.style.cssText = `
-            position:absolute; ${side}:4px; z-index:20; display:none;
-            width:28px; height:36px; margin-top:-18px;
+            position:fixed; z-index:20; display:none;
+            width:${CARD_W}px; height:${CARD_H}px;
             align-items:center; justify-content:center;
             background:#fff; border:1px solid #ccc; border-radius:4px;
             box-shadow:0 2px 6px rgba(0,0,0,0.15);
             cursor:pointer; font-size:14px; color:#444; user-select:none;
         `;
+
+        document.body.appendChild(card);
 
         return card;
 
@@ -32,15 +38,8 @@
         if(container.dataset.edgeScrollReady) return;
         container.dataset.edgeScrollReady = "1";
 
-        if(getComputedStyle(container).position === "static"){
-            container.style.position = "relative";
-        }
-
         const leftCard = makeCard("left");
         const rightCard = makeCard("right");
-
-        container.appendChild(leftCard);
-        container.appendChild(rightCard);
 
         leftCard.addEventListener("click", () => {
             container.scrollBy({ left: -SCROLL_STEP, behavior: "smooth" });
@@ -50,19 +49,22 @@
             container.scrollBy({ left: SCROLL_STEP, behavior: "smooth" });
         });
 
+        function hideBoth(){
+            leftCard.style.display = "none";
+            rightCard.style.display = "none";
+        }
+
         container.addEventListener("pointermove", (e) => {
 
             const hasOverflow = container.scrollWidth > container.clientWidth;
 
             if(!hasOverflow){
-                leftCard.style.display = "none";
-                rightCard.style.display = "none";
+                hideBoth();
                 return;
             }
 
             const rect = container.getBoundingClientRect();
             const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
 
             const canLeft = container.scrollLeft > 0;
             const canRight = container.scrollLeft < container.scrollWidth - container.clientWidth - 1;
@@ -73,15 +75,22 @@
             leftCard.style.display = nearLeft ? "flex" : "none";
             rightCard.style.display = nearRight ? "flex" : "none";
 
-            if(nearLeft) leftCard.style.top = y + "px";
-            if(nearRight) rightCard.style.top = y + "px";
+            const topPx = e.clientY - CARD_H / 2;
+
+            if(nearLeft){
+                leftCard.style.top = topPx + "px";
+                leftCard.style.left = (rect.left + 4) + "px";
+            }
+
+            if(nearRight){
+                rightCard.style.top = topPx + "px";
+                rightCard.style.left = (rect.right - CARD_W - 4) + "px";
+            }
 
         });
 
-        container.addEventListener("pointerleave", () => {
-            leftCard.style.display = "none";
-            rightCard.style.display = "none";
-        });
+        container.addEventListener("pointerleave", hideBoth);
+        container.addEventListener("scroll", hideBoth);
 
     }
 
