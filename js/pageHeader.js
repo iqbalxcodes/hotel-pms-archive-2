@@ -226,6 +226,17 @@ function phAction(name) {
 
 function initPageHeader() {
     if (window.self !== window.top) return; // di dalam iframe shell, skip
+
+    // Dibuka langsung (bukan via shell) -> workspace.js belum ke-load
+    // di halaman ini -> lempar ke shell biar tab bar selalu ada.
+    if (!window.Workspace) {
+        const here = location.pathname.split("/").pop() || "";
+        if (here && here !== "index.html") {
+            location.replace("index.html?open=" + encodeURIComponent(here + location.search));
+            return;
+        }
+    }
+
     phInjectStyle();
     phRender();
 }

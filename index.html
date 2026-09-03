@@ -19,9 +19,31 @@
     <script src="js/sidebar.js"></script>
 
     <script>
+        // filename -> sidebar item id, biar highlight sidebar tetep nyambung
+        // walau bukan dibuka lewat klik sidebar (mis. bounce dari halaman lain)
+        const PH_PAGE_IDS = {
+            "index.html": "nav-dashboard",
+            "reservation.html": "nav-reservations",
+            "room.html": "nav-rooms",
+            "guest.html": "nav-guests"
+        };
+
+        function phHumanize(file) {
+            return file.replace(/\.html.*$/, "").replace(/-/g, " ")
+                .replace(/\b\w/g, c => c.toUpperCase());
+        }
+
         initPageHeader();
         initSidebar();
-        Workspace.openTab({ title: "Reservations", url: "reservation.html", page: "nav-reservations" });
+
+        const openParam = new URLSearchParams(location.search).get("open") || "reservation.html";
+        const bareFile = openParam.split("?")[0];
+
+        Workspace.openTab({
+            title: PH_PAGE_IDS[bareFile] ? phHumanize(bareFile) : phHumanize(bareFile),
+            url: openParam,
+            page: PH_PAGE_IDS[bareFile] || ("page-" + bareFile)
+        });
     </script>
 
 </body>
