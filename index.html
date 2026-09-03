@@ -4,9 +4,11 @@
     <!-- index.html -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
     <title>Hotel PMS</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/workspace.css">
+<base target="_blank">
 </head>
 <body>
 
@@ -39,11 +41,20 @@
         const openParam = new URLSearchParams(location.search).get("open") || "reservation.html";
         const bareFile = openParam.split("?")[0];
 
-        Workspace.openTab({
-            title: PH_PAGE_IDS[bareFile] ? phHumanize(bareFile) : phHumanize(bareFile),
-            url: openParam,
-            page: PH_PAGE_IDS[bareFile] || ("page-" + bareFile)
-        });
+        // SECURITY: validate open param to prevent javascript: injection
+        if (!/^[\w\-\.]+\.html$/.test(bareFile)) {
+            console.warn("Invalid open param, falling back to reservation.html");
+            location.replace("index.html?open=reservation.html");
+        } else if (window.Workspace) {
+            Workspace.openTab({
+                title: PH_PAGE_IDS[bareFile] ? phHumanize(bareFile) : phHumanize(bareFile),
+                url: openParam,
+                page: PH_PAGE_IDS[bareFile] || ("page-" + bareFile)
+            });
+        } else {
+            console.error("Workspace not loaded — falling back to direct navigation");
+            location.href = openParam;
+        }
     </script>
 
 </body>

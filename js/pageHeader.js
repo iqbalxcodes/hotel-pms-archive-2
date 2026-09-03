@@ -59,9 +59,10 @@ function phInjectStyle() {
     const style = document.createElement("style");
     style.id = "phStyle";
     style.textContent = `
+        :root { --ph-header-height: 64px; }
         #pageHeaderBar { flex: none; }
         .ph-header {
-            height: 64px;
+            height: var(--ph-header-height, 64px);
             display: flex;
             align-items: center;
             gap: 8px;
@@ -224,14 +225,21 @@ function phAction(name) {
     }
 }
 
+function isInIframe() { return window.self !== window.top; }
+
 function initPageHeader() {
-    if (window.self !== window.top) return; // di dalam iframe shell, skip
+    if (isInIframe()) return; // di dalam iframe shell, skip
 
     // Dibuka langsung (bukan via shell) -> workspace.js belum ke-load
     // di halaman ini -> lempar ke shell biar tab bar selalu ada.
     if (!window.Workspace) {
         const here = location.pathname.split("/").pop() || "";
         if (here && here !== "index.html") {
+            if (sessionStorage.getItem("ph_bounced")) {
+                console.warn("Bounce guard: already redirected once.");
+                return;
+            }
+            sessionStorage.setItem("ph_bounced", "1");
             location.replace("index.html?open=" + encodeURIComponent(here + location.search));
             return;
         }

@@ -4,8 +4,10 @@
     <!-- under-development.html -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
     <title>Hotel PMS — Under Development</title>
     <link rel="stylesheet" href="/css/style.css">
+<base target="_blank">
 </head>
 <body>
 
@@ -26,7 +28,10 @@
 
     <script>
         const label = new URLSearchParams(location.search).get("label");
-        if (label) document.getElementById("udTitle").textContent = label;
+        if (label) {
+            // textContent is safe against XSS (unlike innerHTML)
+            document.getElementById("udTitle").textContent = label;
+        }
     </script>
 
 </body>

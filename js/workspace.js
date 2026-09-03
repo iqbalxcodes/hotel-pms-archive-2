@@ -23,7 +23,15 @@ const Workspace = (function () {
     // page lagi — user eksplisit minta klik = tab baru.
     // --------------------------------------------------
 
+    const MAX_TABS = 20;
+
     function openTab({ title, url, page }) {
+        // Enforce tab limit: evict oldest non-active tab
+        if (tabs.length >= MAX_TABS) {
+            const victim = tabs.find(t => t.id !== activeId);
+            if (victim) closeTab(victim.id);
+        }
+
         const id = uid();
         tabs.push({ id, title, url, page });
 
@@ -255,6 +263,8 @@ const Workspace = (function () {
         const r = btn.getBoundingClientRect();
         pop.style.top = (r.bottom + 4) + "px";
         pop.style.right = (window.innerWidth - r.right) + "px";
+        pop.style.maxHeight = "70vh";
+        pop.style.overflowY = "auto";
 
         document.getElementById("wsCloseAllBtn").onclick = closeAll;
         pop.querySelectorAll(".ws-kebab-tab").forEach(row => {

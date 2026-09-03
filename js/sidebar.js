@@ -54,6 +54,24 @@ let sbStructure = [];
 let sbMode = "hidden";
 let sbWidth = 260;
 let sbCustomizing = false;
+
+// ------------------------------------------------------
+// shared helpers
+// ------------------------------------------------------
+
+function esc(s) {
+    const d = document.createElement("div");
+    d.textContent = s ?? "";
+    return d.innerHTML;
+}
+
+function escAttr(s) {
+    const d = document.createElement("div");
+    d.textContent = s ?? "";
+    return d.innerHTML.replace(/"/g, "&quot;");
+}
+
+
 let sbShowHidden = false;
 
 // ------------------------------------------------------
@@ -269,6 +287,7 @@ function sbRender() {
     sbRenderFooter();
     sbRenderIcons();
     if (sbCustomizing) sbBindPointerDrag(); else sbBindDrag();
+    sbBindItemClicks();   // <-- CRITICAL: wire sidebar clicks to workspace tabs
     sbBindResize();
     sbBindCustomizeInputs();
     sbBindMarquee();
@@ -297,18 +316,18 @@ function sbRenderGroup(g) {
     const itemsHtml = g.items.map(it => sbRenderItem(it, g.id)).join("");
 
     return `
-        <div class="sb-group" data-group-id="${g.id}">
-            <div class="sb-group-header ${hidden ? "sb-hidden-el" : ""}" data-group-id="${g.id}" draggable="${sbCustomizing}">
+        <div class="sb-group" data-group-id="${escAttr(g.id)}">
+            <div class="sb-group-header ${hidden ? "sb-hidden-el" : ""}" data-group-id="${escAttr(g.id)}" draggable="${sbCustomizing}">
                 <div class="sb-edit-row">
                     ${sbCustomizing ? `<span class="sb-drag-handle">${sbIconSvg("grip-vertical")}</span>` : ""}
-                    ${sbCustomizing ? `<button class="sb-icon-btn-mini" data-icon-target="group:${g.id}">${sbIconSvg(g.icon)}</button>` : sbIconSvg(g.icon)}
+                    ${sbCustomizing ? `<button class="sb-icon-btn-mini" data-icon-target="group:${escAttr(g.id)}">${sbIconSvg(g.icon)}</button>` : sbIconSvg(g.icon)}
                     ${sbCustomizing
-                        ? `<input class="sb-label-edit" data-label-target="group:${g.id}" value="${g.label}">`
-                        : `<span class="sb-label">${g.label}</span>`}
+                        ? `<input class="sb-label-edit" data-label-target="group:${escAttr(g.id)}" value="${escAttr(g.label)}">`
+                        : `<span class="sb-label">${esc(g.label)}</span>`}
                 </div>
-                ${sbCustomizing ? `<button class="sb-hide-btn" data-hide-target="group:${g.id}" title="${hidden ? "Show" : "Hide"}">${sbIconSvg(hidden ? "plus" : "minus")}</button>` : ""}
+                ${sbCustomizing ? `<button class="sb-hide-btn" data-hide-target="group:${escAttr(g.id)}" title="${hidden ? "Show" : "Hide"}">${sbIconSvg(hidden ? "plus" : "minus")}</button>` : ""}
             </div>
-            <div class="sb-group-items" data-group-id="${g.id}">${itemsHtml}</div>
+            <div class="sb-group-items" data-group-id="${escAttr(g.id)}">${itemsHtml}</div>
         </div>
     `;
 }
@@ -323,14 +342,14 @@ function sbRenderItem(it, groupId) {
 
     return `
         <a class="sb-item ${active ? "sb-active" : ""} ${hidden ? "sb-hidden-el" : ""}"
-            href="${sbCustomizing ? "javascript:void(0)" : it.href}"
-            data-item-id="${it.id}" data-group-id="${groupId}" draggable="${!sbCustomizing}" title="${it.label}">
+            href="${sbCustomizing ? "javascript:void(0)" : escAttr(it.href)}"
+            data-item-id="${escAttr(it.id)}" data-group-id="${escAttr(groupId)}" draggable="${!sbCustomizing}" title="${escAttr(it.label)}">
             ${sbCustomizing ? `<span class="sb-drag-handle">${sbIconSvg("grip-vertical")}</span>` : ""}
-            ${sbCustomizing ? `<button class="sb-icon-btn-mini" data-icon-target="item:${it.id}">${sbIconSvg(it.icon)}</button>` : sbIconSvg(it.icon)}
+            ${sbCustomizing ? `<button class="sb-icon-btn-mini" data-icon-target="item:${escAttr(it.id)}">${sbIconSvg(it.icon)}</button>` : sbIconSvg(it.icon)}
             ${sbCustomizing
-                ? `<input class="sb-label-edit" data-label-target="item:${it.id}" value="${it.label}">`
-                : `<span class="sb-label">${it.label}</span>`}
-            ${sbCustomizing ? `<button class="sb-hide-btn" data-hide-target="item:${it.id}" title="${hidden ? "Show" : "Hide"}">${sbIconSvg(hidden ? "plus" : "minus")}</button>` : ""}
+                ? `<input class="sb-label-edit" data-label-target="item:${escAttr(it.id)}" value="${escAttr(it.label)}">`
+                : `<span class="sb-label">${esc(it.label)}</span>`}
+            ${sbCustomizing ? `<button class="sb-hide-btn" data-hide-target="item:${escAttr(it.id)}" title="${hidden ? "Show" : "Hide"}">${sbIconSvg(hidden ? "plus" : "minus")}</button>` : ""}
         </a>
     `;
 }
@@ -558,7 +577,7 @@ function sbOpenIconPicker(anchor, ref) {
     picker.id = "sbIconPicker";
     picker.className = "sb-icon-picker";
     picker.style.top = Math.min(rect.bottom + 4, window.innerHeight - 320) + "px";
-    picker.style.left = Math.min(rect.left, window.innerWidth - 280) + "px";
+    picker.style.left = Math.max(4, Math.min(rect.left, window.innerWidth - 280)) + "px";
     picker.innerHTML = `
         <input type="text" placeholder="Search icon..." id="sbIconSearch">
         <div class="sb-icon-picker-grid" id="sbIconGrid"></div>
