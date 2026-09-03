@@ -163,7 +163,7 @@ const Workspace = (function () {
 
         // drag: reorder atau scroll
         newScrollEl.addEventListener("pointerdown", onTabPointerDown);
-        newScrollEl.addEventListener("mousedown", onTabPointerDown);
+
     }
 
     function onTabPointerDown(e) {
@@ -222,6 +222,7 @@ const Workspace = (function () {
             document.removeEventListener("mousemove", onMove);
             document.removeEventListener("mouseup", onUp);
             dragEl.classList.remove("ws-dragging");
+            dragEl.dataset.dragged = "0";
             if (mode === "reorder") syncOrderFromDom();
             updateOverflowUI();
         }
@@ -233,6 +234,10 @@ const Workspace = (function () {
     }
 
     function init() {
+        // === FIX #3: Guard agar listener tidak ditumpuk berkali-kali ===
+        if (Workspace._inited) return;
+        Workspace._inited = true;
+
         document.getElementById("wsArrowLeft").onclick = () =>
             document.getElementById("wsTabScroll").scrollBy({ left: -150, behavior: "smooth" });
         document.getElementById("wsArrowRight").onclick = () =>
