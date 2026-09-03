@@ -1,12 +1,13 @@
 // ======================================================
 // workspace.js — tab manager, iframe host per tab
-// FIXED: Free-float ghost drag (can leave tab bar area)
-//        Drop outside tab bar → cancel (snap back)
+// FIXED: Chrome-style drag + free-float ghost + tab persistence
 // ======================================================
 
 const Workspace = (function () {
 
     const MIN_W = 80, MAX_W = 220, NATURAL_PAD = 56;
+    const WS_TABS_KEY = "ph_workspace_tabs";
+    const WS_ACTIVE_KEY = "ph_workspace_active";
     let tabs = [];
     let activeId = null;
 
@@ -19,6 +20,26 @@ const Workspace = (function () {
         return measure._ctx.measureText(text).width;
     }
 
+    // --------------------------------------------------
+    // persistence helpers
+    // --------------------------------------------------
+    function saveTabs() {
+        const data = tabs.map(t => ({ id: t.id, title: t.title, url: t.url, page: t.page }));
+        localStorage.setItem(WS_TABS_KEY, JSON.stringify(data));
+    }
+
+    function loadTabs() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(WS_TABS_KEY));
+            if (Array.isArray(saved)) return saved;
+        } catch (e) {}
+        return [];
+    }
+
+    // --------------------------------------------------
+    // open / activate / close
+    // --------------------------------------------------
+
     const MAX_TABS = 20;
 
     function openTab({ title, url, page }) {
@@ -29,6 +50,7 @@ const Workspace = (function () {
 
         const id = uid();
         tabs.push({ id, title, url, page });
+        saveTabs();
 
         const host = document.getElementById("wsContent");
         const frame = document.createElement("iframe");
@@ -42,6 +64,7 @@ const Workspace = (function () {
                 if (t && docTitle) {
                     t.title = docTitle.replace(/^Hotel PMS\s*(—|-)?\s*/i, "") || t.title;
                     render();
+                    saveTabs();
                 }
             } catch (e) {}
         });
@@ -51,6 +74,7 @@ const Workspace = (function () {
 
     function activate(id) {
         activeId = id;
+        localStorage.setItem(WS_ACTIVE_KEY, id);
         document.querySelectorAll(".ws-frame").forEach(f => {
             f.style.display = f.dataset.tabId === id ? "block" : "none";
         });
@@ -69,10 +93,11 @@ const Workspace = (function () {
 
         if (activeId === id) {
             const next = tabs[idx] || tabs[idx - 1];
-            if (next) activate(next.id); else { activeId = null; render(); }
+            if (next) activate(next.id); else { activeId = null; localStorage.removeItem(WS_ACTIVE_KEY); render(); }
         } else {
             render();
         }
+        saveTabs();
     }
 
     function closeAll() {
@@ -81,6 +106,8 @@ const Workspace = (function () {
         });
         tabs = [];
         activeId = null;
+        localStorage.removeItem(WS_TABS_KEY);
+        localStorage.removeItem(WS_ACTIVE_KEY);
         closeKebab();
         render();
     }
@@ -92,6 +119,10 @@ const Workspace = (function () {
         });
     }
 
+    // --------------------------------------------------
+    // width calc
+    // --------------------------------------------------
+
     function computeWidths(containerWidth) {
         const n = tabs.length;
         if (n === 0) return [];
@@ -102,6 +133,10 @@ const Workspace = (function () {
         if (even >= MIN_W) return tabs.map(() => Math.min(even, MAX_W));
         return tabs.map(() => MIN_W);
     }
+
+    // --------------------------------------------------
+    // render
+    // --------------------------------------------------
 
     function render() {
         const bar = document.getElementById("wsTabbar");
@@ -148,8 +183,7 @@ const Workspace = (function () {
     }
 
     // ==========================================================
-    // FREE-FLOAT GHOST DRAG
-    // Ghost bisa ke area mana saja. Drop di luar tab bar = cancel.
+    // FREE-FLOAT GHOST DRAG (Chrome-style angle detection)
     // ==========================================================
     function onTabPointerDown(e) {
         const tabEl = e.target.closest(".ws-tab");
@@ -167,11 +201,10 @@ const Workspace = (function () {
         dragEl.classList.add("ws-dragging");
         dragEl.dataset.dragged = "1";
 
-        // --- simpan posisi asli untuk restore kalau drop invalid ---
-        const originalIndex = tabs.findIndex(t => t.id === dragEl.dataset.id);
-        const originalNextId = tabs[originalIndex + 1]?.id || null;
+        // --- simpan posisi asli untuk snap-back ---
+        const originalNextId = [...scrollEl.children].find(el => el === dragEl)?.nextElementSibling?.dataset?.id || null;
 
-        // --- GHOST: clone tab untuk mengikuti pointer ---
+        // --- GHOST ---
         let ghost = null;
         let ghostOffsetX = 0, ghostOffsetY = 0;
 
@@ -184,7 +217,7 @@ const Workspace = (function () {
             ghost.style.top = rect.top + "px";
             ghost.style.width = rect.width + "px";
             ghost.style.height = rect.height + "px";
-            ghost.style.zIndex = "10000";        // di atas semua: header, sidebar, content
+            ghost.style.zIndex = "10000";
             ghost.style.pointerEvents = "none";
             document.body.appendChild(ghost);
             ghostOffsetX = startX - rect.left;
@@ -201,7 +234,6 @@ const Workspace = (function () {
             if (ghost) { ghost.remove(); ghost = null; }
         }
 
-        // --- helper: deteksi mode berdasarkan sudut gerakan ---
         function detectMode(dx, dy) {
             const angle = Math.atan2(Math.abs(dy), Math.abs(dx)) * (180 / Math.PI);
             return angle < 25 ? "scroll" : "reorder";
@@ -217,7 +249,6 @@ const Workspace = (function () {
             const dx = ev.clientX - startX;
             const dy = ev.clientY - startY;
 
-            // --- mode detection ---
             if (!mode) {
                 if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
                     mode = detectMode(dx, dy);
@@ -237,7 +268,6 @@ const Workspace = (function () {
                 const rect = scrollEl.getBoundingClientRect();
                 edgeDir = ev.clientX > rect.right - 44 ? 1 : ev.clientX < rect.left + 44 ? -1 : 0;
 
-                // --- cari tab di bawah ghost (hide ghost sementara) ---
                 if (ghost) ghost.style.visibility = "hidden";
                 const overEl = document.elementFromPoint(ev.clientX, rect.top + rect.height / 2)?.closest(".ws-tab");
                 if (ghost) ghost.style.visibility = "visible";
@@ -266,24 +296,22 @@ const Workspace = (function () {
             removeGhost();
 
             if (mode === "reorder") {
-                // --- cek apakah drop di dalam area tab bar ---
                 const tabbarRect = tabbar.getBoundingClientRect();
                 const inTabbar = ev.clientX >= tabbarRect.left - 20
                               && ev.clientX <= tabbarRect.right + 20
                               && ev.clientY >= tabbarRect.top - 40
                               && ev.clientY <= tabbarRect.bottom + 40;
-                // toleransi 20-40px biar drop yang "hampir" di tab bar tetap valid
 
                 if (inTabbar) {
-                    syncOrderFromDom();  // save new order
+                    syncOrderFromDom();
+                    saveTabs();
                 } else {
-                    // --- DROP INVALID: snap back ke posisi semula ---
+                    // snap back
                     const scrollEl2 = document.getElementById("wsTabScroll");
                     const nextEl = originalNextId
                         ? scrollEl2.querySelector(`.ws-tab[data-id="${originalNextId}"]`)
                         : null;
                     scrollEl2.insertBefore(dragEl, nextEl);
-                    // tabs array belum di-sync, jadi tidak perlu apa-apa
                 }
             }
             updateOverflowUI();
@@ -295,9 +323,42 @@ const Workspace = (function () {
         document.addEventListener("mouseup", onUp);
     }
 
+    // --------------------------------------------------
+    // init + restore
+    // --------------------------------------------------
     function init() {
         if (Workspace._inited) return;
         Workspace._inited = true;
+
+        // --- RESTORE TABS ---
+        const saved = loadTabs();
+        if (saved.length > 0) {
+            const host = document.getElementById("wsContent");
+            saved.forEach(t => {
+                tabs.push({ id: t.id, title: t.title, url: t.url, page: t.page });
+                const frame = document.createElement("iframe");
+                frame.className = "ws-frame";
+                frame.src = t.url;
+                frame.dataset.tabId = t.id;
+                frame.style.display = "none";
+                frame.addEventListener("load", () => {
+                    try {
+                        const tab = tabs.find(x => x.id === t.id);
+                        const docTitle = frame.contentDocument && frame.contentDocument.title;
+                        if (tab && docTitle) {
+                            tab.title = docTitle.replace(/^Hotel PMS\s*(—|-)?\s*/i, "") || tab.title;
+                            render();
+                            saveTabs();
+                        }
+                    } catch (e) {}
+                });
+                host.appendChild(frame);
+            });
+            const lastActive = localStorage.getItem(WS_ACTIVE_KEY);
+            const toActivate = tabs.find(t => t.id === lastActive) || tabs[0];
+            if (toActivate) activate(toActivate.id);
+            else render();
+        }
 
         document.getElementById("wsArrowLeft").onclick = () =>
             document.getElementById("wsTabScroll").scrollBy({ left: -150, behavior: "smooth" });
@@ -314,6 +375,10 @@ const Workspace = (function () {
         const ids = [...document.querySelectorAll("#wsTabScroll .ws-tab")].map(e => e.dataset.id);
         tabs = ids.map(id => tabs.find(t => t.id === id));
     }
+
+    // --------------------------------------------------
+    // overflow UI
+    // --------------------------------------------------
 
     function updateOverflowUI() {
         const scrollEl = document.getElementById("wsTabScroll");

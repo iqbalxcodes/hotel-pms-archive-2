@@ -1,5 +1,6 @@
 // ======================================================
 // sidebar.js
+// FIXED: click listener tidak menumpuk + event delegation
 // ======================================================
 
 const SB_KEY_STRUCT = "ph_sidebar_structure";
@@ -287,11 +288,11 @@ function sbRender() {
     sbRenderFooter();
     sbRenderIcons();
     if (sbCustomizing) sbBindPointerDrag(); else sbBindDrag();
-    sbBindItemClicks();   // <-- CRITICAL: wire sidebar clicks to workspace tabs
     sbBindResize();
     sbBindCustomizeInputs();
     sbBindMarquee();
     sbApplyLabelFade();
+    // FIX: sbBindItemClicks dipindah ke initSidebar() sekali saja via delegation
 
     if (sbMode === "full" && window.innerWidth <= 700) {
         let bd = document.getElementById("sbBackdrop");
@@ -332,8 +333,6 @@ function sbRenderGroup(g) {
     `;
 }
 
-// onclick opens a workspace tab instead of navigating,
-// active state follows window.__sbActivePage (set by Workspace)
 function sbRenderItem(it, groupId) {
     const hidden = !!it.hidden;
     if (hidden && (!sbCustomizing || !sbShowHidden)) return "";
@@ -354,20 +353,22 @@ function sbRenderItem(it, groupId) {
     `;
 }
 
-// sidebar click -> open/activate a workspace tab
+// FIX: Event delegation di sbMount — attach SEKALI, tidak menumpuk
 function sbBindItemClicks() {
-    document.querySelectorAll(".sb-item").forEach(el => {
-        el.addEventListener("click", (e) => {
-            if (sbCustomizing) return;
-            const target = sbFindTarget("item:" + el.dataset.itemId);
-            if (!target || !window.Workspace) return; // no Workspace -> fallback ke navigasi href normal
-            e.preventDefault();
-            Workspace.openTab({ title: target.label, url: target.href, page: target.id });
-        });
+    const mount = sbGetMount();
+    if (mount._sbClickBound) return;
+    mount._sbClickBound = true;
+
+    mount.addEventListener("click", (e) => {
+        const el = e.target.closest(".sb-item");
+        if (!el || sbCustomizing) return;
+        const target = sbFindTarget("item:" + el.dataset.itemId);
+        if (!target || !window.Workspace) return;
+        e.preventDefault();
+        Workspace.openTab({ title: target.label, url: target.href, page: target.id });
     });
 }
 
-// called by Workspace.activate() so sidebar highlight follows the active tab
 function sbSetActiveByPage(page) {
     window.__sbActivePage = page;
     document.querySelectorAll(".sb-item").forEach(x => {
@@ -423,9 +424,6 @@ function sbRenderFooter() {
     sbRenderIcons();
 }
 
-// PATCHED: push #wsContent AND #wsTabbar (biar lebar tab
-// bar ikut menyempit/melebar sesuai sidebar juga, gak cuma
-// area kontennya doang)
 function sbApplyContentPush() {
     const content = document.getElementById("wsContent") || document.querySelector(".table-container");
     const tabbar = document.getElementById("wsTabbar");
@@ -489,11 +487,6 @@ function sbBindResize() {
         e.preventDefault();
         sidebar.classList.add("sb-resizing");
 
-        // FIX: tanpa overlay ini, begitu mouse lewat di atas iframe
-        // (room.html dll di #wsContent), mousemove kebajak ke document
-        // iframe sendiri -> drag terasa berhenti/gak jalan. Overlay
-        // transparan full-screen ini nangkep semua mouse event selama
-        // drag berlangsung.
         const overlay = document.createElement("div");
         overlay.id = "sbResizeOverlay";
         overlay.style.cssText = "position:fixed;inset:0;z-index:9999;cursor:ew-resize;";
@@ -505,7 +498,6 @@ function sbBindResize() {
             sidebar.style.width = w + "px";
             sbApplyContentPush();
             sbApplyLabelFade();
-            sbBindItemClicks();
         };
         const onUp = () => {
             sidebar.classList.remove("sb-resizing");
@@ -768,8 +760,6 @@ function sbSyncStructureFromDom() {
 // init
 // ------------------------------------------------------
 
-// skip entirely if we're inside an iframe (a page opened
-// by the shell already has its own chrome from the shell's sidebar)
 function initSidebar() {
     if (window.self !== window.top) return;
 
@@ -777,6 +767,9 @@ function initSidebar() {
     sbLoad();
     sbRender();
     sbUpdateHamburgerIcon();
+
+    // FIX: attach click delegation SEKALI di mount, tidak di sbRender
+    sbBindItemClicks();
 
     document.addEventListener("ph:toggle-nav", sbCycleMode);
     window.addEventListener("resize", () => sbApplyContentPush());
