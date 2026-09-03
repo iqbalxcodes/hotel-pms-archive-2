@@ -467,6 +467,16 @@ function sbBindResize() {
         e.preventDefault();
         sidebar.classList.add("sb-resizing");
 
+        // FIX: tanpa overlay ini, begitu mouse lewat di atas iframe
+        // (room.html dll di #wsContent), mousemove kebajak ke document
+        // iframe sendiri -> drag terasa berhenti/gak jalan. Overlay
+        // transparan full-screen ini nangkep semua mouse event selama
+        // drag berlangsung.
+        const overlay = document.createElement("div");
+        overlay.id = "sbResizeOverlay";
+        overlay.style.cssText = "position:fixed;inset:0;z-index:9999;cursor:ew-resize;";
+        document.body.appendChild(overlay);
+
         const onMove = (ev) => {
             const w = Math.min(420, Math.max(200, ev.clientX));
             sbWidth = w;
@@ -477,6 +487,7 @@ function sbBindResize() {
         const onUp = () => {
             sidebar.classList.remove("sb-resizing");
             sbSaveWidth();
+            overlay.remove();
             document.removeEventListener("mousemove", onMove);
             document.removeEventListener("mouseup", onUp);
         };
