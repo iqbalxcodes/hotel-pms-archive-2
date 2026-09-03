@@ -1,8 +1,9 @@
 // ======================================================
 // tableColumns.js
 // State kolom tabel (visible/order/width), render header
-// dinamis, resize kolom, dan popup "Modify Table"
-// (preset A-Z, drag & drop, click-to-move)
+// dinamis, resize kolom, drag&drop reorder kolom langsung
+// di header, dan popup "Modify Table" (preset A-Z, drag &
+// drop, click-to-move).
 // ======================================================
 
 const TABLE_STATE_KEY = "hotel_pms_table_state_v1";
@@ -179,8 +180,18 @@ function formatColumnValue(key, res){
 
 // ======================================================
 // Render Header + Colgroup (dipanggil saat load & saat
-// Apply di popup Modify Table)
+// Apply di popup Modify Table, atau saat drag reorder)
+//
+// - Simbol "↕" statis DIBUANG dari label -- fungsinya
+//   (klik = sort) tetap jalan lewat listener di labelSpan.
+// - Kolom yang lagi aktif di-sort dapet indikator ▲/▼ kecil,
+//   kolom lain polos (gak ada clutter simbol).
+// - labelSpan sekarang draggable=true -> bisa di-drag buat
+//   reorder kolom langsung di header (gak perlu buka popup
+//   Modify Table lagi).
 // ======================================================
+
+let thDragKey = null;
 
 function renderTableHeader(){
 
@@ -194,7 +205,7 @@ function renderTableHeader(){
     colgroup.innerHTML = "";
     headerRow.innerHTML = "";
 
-    // Kolom checkbox: fixed, tidak resizable, tidak masuk config
+    // Kolom checkbox: fixed, tidak resizable/draggable, tidak masuk config
     const checkboxCol = document.createElement("col");
     checkboxCol.style.width = "36px";
     colgroup.appendChild(checkboxCol);
@@ -217,28 +228,126 @@ function renderTableHeader(){
 
         const th = document.createElement("th");
         th.className = "resizable-th";
+        th.dataset.key = key;
 
         const labelSpan = document.createElement("span");
         labelSpan.className = "col-header-label";
-        labelSpan.innerText = colDef.label + (colDef.sortable === false ? "" : " ↕");
+        labelSpan.textContent = colDef.label;
+        labelSpan.draggable = true;
 
         if(colDef.sortable !== false){
 
-            labelSpan.style.cursor = "pointer";
+            labelSpan.classList.add("col-header-sortable");
             labelSpan.addEventListener("click", () => sortTable(key));
+
+            // Indikator arah sort -- CUMA muncul di kolom yang lagi aktif
+            if(typeof activeSortColumn !== "undefined" && activeSortColumn === key){
+
+                const indicator = document.createElement("span");
+                indicator.className = "col-sort-indicator";
+                indicator.textContent = sortDirection[key] === "asc" ? " ▲" : " ▼";
+                labelSpan.appendChild(indicator);
+
+            }
 
         }
 
+        // ---- drag source: mulai drag dari label (bukan whole th),
+        // biar gak bentrok sama resize handle ----
+        labelSpan.addEventListener("dragstart", (e) => {
+            thDragKey = key;
+            th.classList.add("col-dragging");
+            e.dataTransfer.effectAllowed = "move";
+        });
+
+        labelSpan.addEventListener("dragend", () => {
+            th.classList.remove("col-dragging");
+            document.querySelectorAll(".resizable-th").forEach(x =>
+                x.classList.remove("col-drop-before", "col-drop-after"));
+            thDragKey = null;
+        });
+
         th.appendChild(labelSpan);
+
+        // ---- drop target: whole th, biar area drop lega ----
+        th.addEventListener("dragover", (e) => {
+
+            if(!thDragKey || thDragKey === key) return;
+
+            e.preventDefault();
+
+            const rect = th.getBoundingClientRect();
+            const before = e.clientX < rect.left + rect.width / 2;
+
+            document.querySelectorAll(".resizable-th").forEach(x =>
+                x.classList.remove("col-drop-before", "col-drop-after"));
+            th.classList.add(before ? "col-drop-before" : "col-drop-after");
+
+        });
+
+        th.addEventListener("drop", (e) => {
+
+            e.preventDefault();
+
+            if(!thDragKey || thDragKey === key) return;
+
+            const rect = th.getBoundingClientRect();
+            const before = e.clientX < rect.left + rect.width / 2;
+
+            reorderColumn(thDragKey, key, before);
+
+        });
 
         const handle = document.createElement("div");
         handle.className = "col-resize-handle";
-        handle.addEventListener("mousedown", (e) => startColumnResize(e, key));
+        handle.draggable = false;
+        handle.addEventListener("mousedown", (e) => {
+            e.stopPropagation();
+            startColumnResize(e, key);
+        });
         th.appendChild(handle);
 
         headerRow.appendChild(th);
 
     });
+
+}
+
+// ------------------------------------------------------
+// Drag&drop reorder: pindahin draggedKey ke sebelum/sesudah
+// targetKey di visibleOrder, simpan, render ulang.
+// ------------------------------------------------------
+
+function reorderColumn(draggedKey, targetKey, before){
+
+    const state = getTableState();
+    const arr = state.visibleOrder;
+
+    const from = arr.indexOf(draggedKey);
+    if(from === -1) return;
+
+    arr.splice(from, 1);
+
+    let to = arr.indexOf(targetKey);
+
+    if(to === -1){
+
+        arr.push(draggedKey);
+
+    } else {
+
+        if(!before) to += 1;
+        arr.splice(to, 0, draggedKey);
+
+    }
+
+    saveTableState(state);
+
+    renderTableHeader();
+
+    if(typeof refreshTable === "function"){
+        refreshTable();
+    }
 
 }
 

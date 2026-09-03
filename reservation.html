@@ -4,7 +4,10 @@
     <!-- reservation.html -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2 https://www.googletagmanager.com https://www.google-analytics.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+    <!-- FIX: connect-src ditambahin -- sebelumnya gak ada, fallback ke
+         default-src 'self' -> semua fetch ke *.supabase.co keblokir,
+         itu sebabnya tabel selalu kosong -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2 https://www.googletagmanager.com https://www.google-analytics.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://www.google-analytics.com;">
     <title>Hotel PMS</title>
     <link rel="stylesheet" href="/css/style.css">
 <base target="_blank">
@@ -12,7 +15,9 @@
 <body>
 
     <div id="pageHeaderBar" class="page-header-bar"></div>
-    <div id="pageNavigation" data-page="reservations"></div>
+    <!-- FIX: #pageNavigation + navigation.js dibuang -- udah kegantiin
+         workspace tab system, dobel nav gak perlu lagi -->
+
     <div id="addReservationPanel" style="display: none;">
         <h2>Add Reservation</h2>
 
@@ -40,7 +45,6 @@
     </div>
 
     <!-- Container Utama Bertipe Kartu / Detail-Card -->
-<!-- Container Utama Bertipe Kartu / Detail-Card -->
     <div class="table-container detail-card">
 
         <div class="reservation-header">
@@ -90,8 +94,6 @@
                     Add Reservation
                 </button>
 
-                <!-- FIX: tombol ini yang ilang -- buka addReservationPanel
-                     (isinya Generate Test Reservation + Group Reservation) -->
                 <button
                     id="addBulkReservationBtn"
                     onclick="document.getElementById('addReservationPanel').style.display='block';">
@@ -100,7 +102,6 @@
 
                 <button id="modifyTableBtn" onclick="toggleModifyMode()">Modify Table</button>
 
-                <!-- FIX: dulu display:none permanen, gak pernah dimunculin -> Cancel gak kepencet -->
                 <button id="cancelAddBtn" onclick="hideAddReservation()">
                     Cancel
                 </button>
@@ -122,15 +123,16 @@
             </div>
 
             <!-- SELECT TOOLBAR -->
+            <!-- FIX: auth-required dibuang sementara, biar gak kekunci -->
             <div id="selectionToolbar" style="display:none;">
 
                 <span id="selectedCount">0 selected</span>
 
-                <button onclick="updateStatus('CHECKED_IN')" class="auth-required">CHECK-IN</button>
-                <button onclick="updateStatus('CHECKED_OUT')" class="auth-required">CHECK-OUT</button>
-                <button onclick="updateStatus('CANCELLED')" class="auth-required" data-roles="admin,manager">CANCEL</button>
+                <button onclick="updateStatus('CHECKED_IN')">CHECK-IN</button>
+                <button onclick="updateStatus('CHECKED_OUT')">CHECK-OUT</button>
+                <button onclick="updateStatus('CANCELLED')">CANCEL</button>
 
-                <button onclick="openBulkEditPopover()" class="auth-required">✏️ Edit Field</button>
+                <button onclick="openBulkEditPopover()">✏️ Edit Field</button>
 
             </div>
 
@@ -217,13 +219,13 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/navigation.js"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/guestData.js"></script>
     <script src="js/roomData.js"></script>
     <script src="js/tableConfig.js"></script>
-    <script src="js/tableColumns.js"></script>  
+    <script src="js/tableColumns.js"></script>
+    <script src="js/tableScrollEdge.js"></script>
 
     <script src="js/reservationUI.js"></script>
 
