@@ -90,9 +90,18 @@
                     Add Reservation
                 </button>
 
+                <!-- FIX: tombol ini yang ilang -- buka addReservationPanel
+                     (isinya Generate Test Reservation + Group Reservation) -->
+                <button
+                    id="addBulkReservationBtn"
+                    onclick="document.getElementById('addReservationPanel').style.display='block';">
+                    + Bulk Reservation
+                </button>
+
                 <button id="modifyTableBtn" onclick="toggleModifyMode()">Modify Table</button>
 
-                <button id="cancelAddBtn" onclick="hideAddReservation()" style="display:none;">
+                <!-- FIX: dulu display:none permanen, gak pernah dimunculin -> Cancel gak kepencet -->
+                <button id="cancelAddBtn" onclick="hideAddReservation()">
                     Cancel
                 </button>
 
