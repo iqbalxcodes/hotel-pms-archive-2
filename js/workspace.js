@@ -81,8 +81,13 @@ const Workspace = (function () {
     }
 
     function closeAll() {
-        tabs.slice().forEach(t => closeTab(t.id));
+        tabs.forEach(t => {
+            document.querySelector(`.ws-frame[data-tab-id="${t.id}"]`)?.remove();
+        });
+        tabs = [];
+        activeId = null;
         closeKebab();
+        render();
     }
 
     function scrollTabIntoView(id) {
@@ -163,7 +168,7 @@ const Workspace = (function () {
         const startScrollLeft = scrollEl.scrollLeft;
         let mode = null, edgeDir = 0, raf = null;
 
-        el.setPointerCapture(e.pointerId);
+        try { el.setPointerCapture?.(e.pointerId); } catch (err) {}
 
         function autoScroll() {
             if (edgeDir !== 0) scrollEl.scrollLeft += edgeDir * 14;
@@ -175,9 +180,9 @@ const Workspace = (function () {
             const dx = ev.clientX - startX, dy = ev.clientY - startY;
 
             if (!mode) {
-                if (Math.abs(dy) > 8 && Math.abs(dy) >= Math.abs(dx)) {
+                if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx) * 1.5) {
                     mode = "reorder"; el.classList.add("ws-dragging"); el.dataset.dragged = "1";
-                } else if (Math.abs(dx) > 8) {
+                } else if (Math.abs(dx) > 12) {
                     mode = "scroll"; el.dataset.dragged = "1";
                 }
             }
@@ -199,9 +204,11 @@ const Workspace = (function () {
 
         function onUp() {
             cancelAnimationFrame(raf);
-            el.releasePointerCapture(e.pointerId);
+            try { el.releasePointerCapture?.(e.pointerId); } catch (err) {}
             el.removeEventListener("pointermove", onMove);
             el.removeEventListener("pointerup", onUp);
+            el.removeEventListener("mousemove", onMove);
+            el.removeEventListener("mouseup", onUp);
             el.classList.remove("ws-dragging");
             if (mode === "reorder") syncOrderFromDom();
             updateOverflowUI();
@@ -209,6 +216,9 @@ const Workspace = (function () {
 
         el.addEventListener("pointermove", onMove);
         el.addEventListener("pointerup", onUp);
+        // fallback: kalau browser pointerEvent gak support
+        el.addEventListener("mousemove", onMove);
+        el.addEventListener("mouseup", onUp);
     }
 
     function syncOrderFromDom() {
