@@ -59,13 +59,23 @@ async function generateRandomReservations(){
 
 
     const statuses = [
-        "RESERVED",
+        "PENDING",
+        "CONFIRMED",
         "CHECKED_IN",
         "CHECKED_OUT",
-        "CANCELLED"
+        "CANCELLED",
+        "NO_SHOW"
     ];
 
 
+    // kalau lewat batas rentang (30 hari dari sekarang, gantiin "lewat bulan Agustus")
+    const rangeEnd = new Date();
+    rangeEnd.setHours(0, 0, 0, 0);
+    rangeEnd.setDate(rangeEnd.getDate() + 30);
+
+    if(departure > rangeEnd){
+        departure.setTime(rangeEnd.getTime());
+    }
 
     for(let i = 0; i < 10; i++){
 
@@ -105,7 +115,7 @@ async function generateRandomReservations(){
         // tanggal arrival
 
         const arrival =
-            new Date("2026-08-01");
+            new Date();
 
 
 
