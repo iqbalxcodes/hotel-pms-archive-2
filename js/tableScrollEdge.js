@@ -27,8 +27,6 @@
             cursor:pointer; font-size:14px; color:#444; user-select:none;
         `;
 
-        document.body.appendChild(card);
-
         return card;
 
     }
@@ -40,6 +38,9 @@
 
         const leftCard = makeCard("left");
         const rightCard = makeCard("right");
+
+        container.appendChild(leftCard);
+        container.appendChild(rightCard);
 
         leftCard.addEventListener("click", () => {
             container.scrollBy({ left: -SCROLL_STEP, behavior: "smooth" });
