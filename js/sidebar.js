@@ -14,37 +14,37 @@ const SB_DEFAULT_STRUCTURE = [
         { id: "nav-guests", label: "Guests", icon: "users", href: "guest.html" }
     ]},
     { id: "grp-hotel-ops", label: "HOTEL OPERATIONS", icon: "concierge-bell", items: [
-        { id: "nav-housekeeping", label: "Housekeeping", icon: "spray-can", href: "#" },
-        { id: "nav-maintenance", label: "Maintenance", icon: "wrench", href: "#" },
-        { id: "nav-handover", label: "Handover", icon: "arrow-left-right", href: "#" }
+        { id: "nav-housekeeping", label: "Housekeeping", icon: "spray-can", href: "room.html" },
+        { id: "nav-maintenance", label: "Maintenance", icon: "wrench", href: "room.html" },
+        { id: "nav-handover", label: "Handover", icon: "arrow-left-right", href: "under-development.html?label=Handover" }
     ]},
     { id: "grp-commercial", label: "COMMERCIAL", icon: "briefcase", items: [
-        { id: "nav-events", label: "Event & Group", icon: "party-popper", href: "#" },
-        { id: "nav-rates-inv", label: "Rates & Inventory", icon: "tags", href: "#" },
-        { id: "nav-companies", label: "Companies", icon: "building-2", href: "#" }
+        { id: "nav-events", label: "Event & Group", icon: "party-popper", href: "under-development.html?label=Event+%26+Group" },
+        { id: "nav-rates-inv", label: "Rates & Inventory", icon: "tags", href: "room-rack.html" },
+        { id: "nav-companies", label: "Companies", icon: "building-2", href: "under-development.html?label=Companies" }
     ]},
     { id: "grp-finance", label: "FINANCE", icon: "wallet", items: [
-        { id: "nav-finance", label: "Finance", icon: "banknote", href: "#" },
-        { id: "nav-night-audit", label: "Night Audit", icon: "moon-star", href: "#" }
+        { id: "nav-finance", label: "Finance", icon: "banknote", href: "under-development.html?label=Finance" },
+        { id: "nav-night-audit", label: "Night Audit", icon: "moon-star", href: "under-development.html?label=Night+Audit" }
     ]},
     { id: "grp-reports", label: "REPORTS", icon: "bar-chart-3", items: [
-        { id: "nav-downtime", label: "Down Time Report", icon: "flame", href: "#" }
+        { id: "nav-downtime", label: "Down Time Report", icon: "flame", href: "under-development.html?label=Down+Time+Report" }
     ]},
     { id: "grp-admin", label: "ADMINISTRATION", icon: "shield", items: [
-        { id: "nav-property", label: "Property", icon: "building", href: "#" },
-        { id: "nav-users", label: "Users", icon: "user-cog", href: "#" },
-        { id: "nav-roles", label: "Roles & Permissions", icon: "shield-check", href: "#" },
-        { id: "nav-departments", label: "Departments", icon: "network", href: "#" },
-        { id: "nav-room-config", label: "Room Configuration", icon: "door-open", href: "#" },
-        { id: "nav-rate-config", label: "Rate Configuration", icon: "percent", href: "#" },
-        { id: "nav-tax-config", label: "Tax Configuration", icon: "receipt", href: "#" },
-        { id: "nav-payment-methods", label: "Payment Methods", icon: "credit-card", href: "#" },
-        { id: "nav-business-rules", label: "Business Rules", icon: "scale", href: "#" },
-        { id: "nav-integrations", label: "Integrations", icon: "plug", href: "#" },
-        { id: "nav-notifications", label: "Notifications", icon: "bell", href: "#" },
-        { id: "nav-templates", label: "Templates", icon: "file-text", href: "#" },
-        { id: "nav-audit-log", label: "Audit Log", icon: "history", href: "#" },
-        { id: "nav-system-settings", label: "System Settings", icon: "settings", href: "#" }
+        { id: "nav-property", label: "Property", icon: "building", href: "under-development.html?label=Property" },
+        { id: "nav-users", label: "Users", icon: "user-cog", href: "under-development.html?label=Users" },
+        { id: "nav-roles", label: "Roles & Permissions", icon: "shield-check", href: "under-development.html?label=Roles+%26+Permissions" },
+        { id: "nav-departments", label: "Departments", icon: "network", href: "under-development.html?label=Departments" },
+        { id: "nav-room-config", label: "Room Configuration", icon: "door-open", href: "under-development.html?label=Room+Configuration" },
+        { id: "nav-rate-config", label: "Rate Configuration", icon: "percent", href: "under-development.html?label=Rate+Configuration" },
+        { id: "nav-tax-config", label: "Tax Configuration", icon: "receipt", href: "under-development.html?label=Tax+Configuration" },
+        { id: "nav-payment-methods", label: "Payment Methods", icon: "credit-card", href: "under-development.html?label=Payment+Methods" },
+        { id: "nav-business-rules", label: "Business Rules", icon: "scale", href: "under-development.html?label=Business+Rules" },
+        { id: "nav-integrations", label: "Integrations", icon: "plug", href: "under-development.html?label=Integrations" },
+        { id: "nav-notifications", label: "Notifications", icon: "bell", href: "under-development.html?label=Notifications" },
+        { id: "nav-templates", label: "Templates", icon: "file-text", href: "under-development.html?label=Templates" },
+        { id: "nav-audit-log", label: "Audit Log", icon: "history", href: "under-development.html?label=Audit+Log" },
+        { id: "nav-system-settings", label: "System Settings", icon: "settings", href: "under-development.html?label=System+Settings" }
     ]}
 ];
 
@@ -313,8 +313,8 @@ function sbRenderGroup(g) {
     `;
 }
 
-// --- PATCHED: onclick opens a workspace tab instead of navigating,
-// active state now follows window.__sbActivePage (set by Workspace) ---
+// onclick opens a workspace tab instead of navigating,
+// active state follows window.__sbActivePage (set by Workspace)
 function sbRenderItem(it, groupId) {
     const hidden = !!it.hidden;
     if (hidden && (!sbCustomizing || !sbShowHidden)) return "";
@@ -336,7 +336,7 @@ function sbRenderItem(it, groupId) {
     `;
 }
 
-// --- NEW: sidebar click -> open/activate a workspace tab ---
+// sidebar click -> open/activate a workspace tab
 function sbHandleItemClick(e, href, label, itemId) {
     if (sbCustomizing) return false;
     if (!window.Workspace) return true; // fallback: standalone page, navigate normally
@@ -345,7 +345,7 @@ function sbHandleItemClick(e, href, label, itemId) {
     return false;
 }
 
-// --- NEW: called by Workspace.activate() so sidebar highlight follows the active tab ---
+// called by Workspace.activate() so sidebar highlight follows the active tab
 function sbSetActiveByPage(page) {
     window.__sbActivePage = page;
     document.querySelectorAll(".sb-item").forEach(x => {
@@ -401,17 +401,24 @@ function sbRenderFooter() {
     sbRenderIcons();
 }
 
-// --- PATCHED: push #wsContent instead of .table-container (shell mode) ---
+// PATCHED: push #wsContent AND #wsTabbar (biar lebar tab
+// bar ikut menyempit/melebar sesuai sidebar juga, gak cuma
+// area kontennya doang)
 function sbApplyContentPush() {
     const content = document.getElementById("wsContent") || document.querySelector(".table-container");
-    if (!content) return;
+    const tabbar = document.getElementById("wsTabbar");
+
+    let margin = "";
     if (sbMode === "hidden" || (sbMode === "full" && window.innerWidth <= 700)) {
-        content.style.marginLeft = "";
+        margin = "";
     } else if (sbMode === "icon") {
-        content.style.marginLeft = "64px";
+        margin = "64px";
     } else if (sbMode === "full") {
-        content.style.marginLeft = sbWidth + "px";
+        margin = sbWidth + "px";
     }
+
+    if (content) content.style.marginLeft = margin;
+    if (tabbar) tabbar.style.marginLeft = margin;
 }
 
 // ------------------------------------------------------
@@ -727,8 +734,8 @@ function sbSyncStructureFromDom() {
 // init
 // ------------------------------------------------------
 
-// --- PATCHED: skip entirely if we're inside an iframe (a page opened
-// by the shell already has its own chrome from the shell's sidebar) ---
+// skip entirely if we're inside an iframe (a page opened
+// by the shell already has its own chrome from the shell's sidebar)
 function initSidebar() {
     if (window.self !== window.top) return;
 

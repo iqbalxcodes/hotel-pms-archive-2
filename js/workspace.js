@@ -19,12 +19,11 @@ const Workspace = (function () {
 
     // --------------------------------------------------
     // open / activate / close
+    // PATCHED: openTab SELALU bikin tab baru, gak dedupe by
+    // page lagi — user eksplisit minta klik = tab baru.
     // --------------------------------------------------
 
     function openTab({ title, url, page }) {
-        const existing = tabs.find(t => t.page === page);
-        if (existing) { activate(existing.id); return; }
-
         const id = uid();
         tabs.push({ id, title, url, page });
 
