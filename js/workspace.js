@@ -1,5 +1,7 @@
 // ======================================================
 // workspace.js — tab manager, iframe host per tab
+// FIXED: Chrome-style drag detection (all directions = reorder, 
+//        only pure horizontal = scroll)
 // ======================================================
 
 const Workspace = (function () {
@@ -17,16 +19,9 @@ const Workspace = (function () {
         return measure._ctx.measureText(text).width;
     }
 
-    // --------------------------------------------------
-    // open / activate / close
-    // PATCHED: openTab SELALU bikin tab baru, gak dedupe by
-    // page lagi — user eksplisit minta klik = tab baru.
-    // --------------------------------------------------
-
     const MAX_TABS = 20;
 
     function openTab({ title, url, page }) {
-        // Enforce tab limit: evict oldest non-active tab
         if (tabs.length >= MAX_TABS) {
             const victim = tabs.find(t => t.id !== activeId);
             if (victim) closeTab(victim.id);
@@ -97,11 +92,6 @@ const Workspace = (function () {
         });
     }
 
-    // --------------------------------------------------
-    // width calc: 1 tab natural; >=2 tabs even-divide down
-    // to MIN_W, below that -> fixed MIN_W + horizontal scroll
-    // --------------------------------------------------
-
     function computeWidths(containerWidth) {
         const n = tabs.length;
         if (n === 0) return [];
@@ -110,12 +100,8 @@ const Workspace = (function () {
         }
         const even = containerWidth / n;
         if (even >= MIN_W) return tabs.map(() => Math.min(even, MAX_W));
-        return tabs.map(() => MIN_W); // overflow mode
+        return tabs.map(() => MIN_W);
     }
-
-    // --------------------------------------------------
-    // render
-    // --------------------------------------------------
 
     function render() {
         const bar = document.getElementById("wsTabbar");
@@ -136,19 +122,16 @@ const Workspace = (function () {
         `).join("");
 
         updateOverflowUI();
-        // jangan panggil bindTabEvents() di sini — listener sudah di-attach via delegation
     }
 
-    // ======== EVENT DELEGATION — attach sekali ke scrollEl ========
+    // ======== EVENT DELEGATION ========
     function initTabEventDelegation() {
         const scrollEl = document.getElementById("wsTabScroll");
         if (!scrollEl) return;
 
-        // remove old listeners (kalau ada)
         scrollEl.replaceWith(scrollEl.cloneNode(true));
         const newScrollEl = document.getElementById("wsTabScroll");
 
-        // click: activate atau close
         newScrollEl.addEventListener("click", e => {
             const closeBtn = e.target.closest(".ws-tab-close");
             if (closeBtn) {
@@ -161,14 +144,18 @@ const Workspace = (function () {
             }
         });
 
-        // drag: reorder atau scroll
         newScrollEl.addEventListener("pointerdown", onTabPointerDown);
-
     }
 
+    // ==========================================================
+    // CHROME-STYLE DRAG DETECTION
+    // Semua arah kecuali horizontal murni → reorder
+    // ==========================================================
     function onTabPointerDown(e) {
         const tabEl = e.target.closest(".ws-tab");
         if (!tabEl || e.target.closest(".ws-tab-close")) return;
+
+        e.preventDefault();
 
         const scrollEl = document.getElementById("wsTabScroll");
         const startX = e.clientX, startY = e.clientY;
@@ -179,6 +166,15 @@ const Workspace = (function () {
         dragEl.classList.add("ws-dragging");
         dragEl.dataset.dragged = "1";
 
+        // --- helper: deteksi mode berdasarkan sudut gerakan ---
+        function detectMode(dx, dy) {
+            // angle = 0°   → pure horizontal  → scroll
+            // angle = 90°  → pure vertical    → reorder
+            // threshold 25°: gerakan di bawah 25° dari horizontal = scroll
+            const angle = Math.atan2(Math.abs(dy), Math.abs(dx)) * (180 / Math.PI);
+            return angle < 25 ? "scroll" : "reorder";
+        }
+
         function autoScroll() {
             if (edgeDir !== 0) scrollEl.scrollLeft += edgeDir * 14;
             raf = requestAnimationFrame(autoScroll);
@@ -186,13 +182,17 @@ const Workspace = (function () {
         autoScroll();
 
         function onMove(ev) {
-            const dx = ev.clientX - startX, dy = ev.clientY - startY;
+            const dx = ev.clientX - startX;
+            const dy = ev.clientY - startY;
 
+            // --- mode detection: hanya sekali, di awal ---
             if (!mode) {
-                if (Math.abs(dy) > 12 && Math.abs(dy) >= Math.abs(dx)) {
-                    mode = "reorder";
-                } else if (Math.abs(dx) > 12) {
-                    mode = "scroll";
+                if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+                    mode = detectMode(dx, dy);
+                    // visual feedback: reorder = tab terangkat
+                    if (mode === "reorder") {
+                        dragEl.classList.add("ws-reordering");
+                    }
                 }
             }
 
@@ -221,7 +221,7 @@ const Workspace = (function () {
             document.removeEventListener("pointerup", onUp);
             document.removeEventListener("mousemove", onMove);
             document.removeEventListener("mouseup", onUp);
-            dragEl.classList.remove("ws-dragging");
+            dragEl.classList.remove("ws-dragging", "ws-reordering");
             dragEl.dataset.dragged = "0";
             if (mode === "reorder") syncOrderFromDom();
             updateOverflowUI();
@@ -234,7 +234,6 @@ const Workspace = (function () {
     }
 
     function init() {
-        // === FIX #3: Guard agar listener tidak ditumpuk berkali-kali ===
         if (Workspace._inited) return;
         Workspace._inited = true;
 
@@ -246,34 +245,13 @@ const Workspace = (function () {
         document.getElementById("wsTabScroll").addEventListener("scroll", updateOverflowUI);
         window.addEventListener("resize", render);
 
-        // === BARU: attach event delegation sekali saja ===
         initTabEventDelegation();
-    }
-
-    function bindTabEvents() {
-        document.querySelectorAll(".ws-tab").forEach(el => {
-            el.addEventListener("click", e => {
-                if (e.target.closest(".ws-tab-close")) return;
-                if (el.dataset.dragged === "1") { el.dataset.dragged = "0"; return; }
-                activate(el.dataset.id);
-            });
-            el.querySelector(".ws-tab-close").addEventListener("click", e => {
-                e.stopPropagation();
-                closeTab(el.dataset.id);
-            });
-            el.addEventListener("pointerdown", onTabPointerDown);
-        });
     }
 
     function syncOrderFromDom() {
         const ids = [...document.querySelectorAll("#wsTabScroll .ws-tab")].map(e => e.dataset.id);
         tabs = ids.map(id => tabs.find(t => t.id === id));
     }
-
-    // --------------------------------------------------
-    // overflow: arrows + right fade + kebab (only shows
-    // tabs currently NOT fully visible in the scroller)
-    // --------------------------------------------------
 
     function updateOverflowUI() {
         const scrollEl = document.getElementById("wsTabScroll");
