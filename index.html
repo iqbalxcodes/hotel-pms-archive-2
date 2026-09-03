@@ -8,6 +8,7 @@
     <title>Hotel PMS</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/workspace.css">
+    <link rel="stylesheet" href="css/rsidebar.css">
 <base target="_blank">
 </head>
 <body>
@@ -19,10 +20,9 @@
     <script src="js/pageHeader.js"></script>
     <script src="js/workspace.js"></script>
     <script src="js/sidebar.js"></script>
+    <script src="js/rsidebar.js"></script>
 
     <script>
-        // filename -> sidebar item id, biar highlight sidebar tetep nyambung
-        // walau bukan dibuka lewat klik sidebar (mis. bounce dari halaman lain)
         const PH_PAGE_IDS = {
             "index.html": "nav-dashboard",
             "reservation.html": "nav-reservations",
@@ -37,11 +37,11 @@
 
         initPageHeader();
         initSidebar();
+        initRightSidebar();
 
         const openParam = new URLSearchParams(location.search).get("open") || "reservation.html";
         const bareFile = openParam.split("?")[0];
 
-        // SECURITY: validate open param to prevent javascript: injection
         if (!/^[\w\-\.]+\.html$/.test(bareFile)) {
             console.warn("Invalid open param, falling back to reservation.html");
             location.replace("index.html?open=reservation.html");

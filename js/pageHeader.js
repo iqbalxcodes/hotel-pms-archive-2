@@ -1,14 +1,12 @@
 // ======================================================
 // pageHeader.js
-// Global header: hamburger | avatar | logo | search | notif | add | more
-// + workspace tab bar (#wsTabbar) rendered below it.
-// Order draggable, persisted in localStorage.
-// Skip entirely inside iframe (child page opened by shell
-// already gets chrome from shell's own header).
+// Order: hamburger | avatar | logo | search | add | notif | messages
+// + workspace tab bar (#wsTabbar) di bawahnya.
+// Skip total kalau di dalam iframe (shell yang render chrome).
 // ======================================================
 
 const PH_ORDER_KEY = "ph_header_order";
-const PH_DEFAULT_ORDER = ["hamburger", "avatar", "logo", "search", "notification", "add", "more"];
+const PH_DEFAULT_ORDER = ["hamburger", "avatar", "logo", "search", "add", "notification", "messages"];
 
 const PH_ITEMS = {
     hamburger: {
@@ -27,24 +25,27 @@ const PH_ITEMS = {
         width: "flex",
         html: `<div class="ph-search"><i data-lucide="search"></i><input id="phSearchInput" type="text" placeholder="Search..." oninput="phSearch(this.value)"></div>`
     },
-    notification: {
-        width: "44px",
-        html: `<button class="ph-icon-btn" title="Notifications" onclick="phAction('notification')"><i data-lucide="bell"></i></button>`
-    },
     add: {
         width: "44px",
         html: `<button class="ph-icon-btn" title="Add" onclick="phAction('add')"><i data-lucide="plus"></i></button>`
     },
-    more: {
+    notification: {
         width: "44px",
-        html: `<button class="ph-icon-btn" title="More" onclick="phAction('more')"><i data-lucide="ellipsis-vertical"></i></button>`
+        html: `<button class="ph-icon-btn" title="Notifications" onclick="phAction('notification')"><i data-lucide="bell"></i></button>`
+    },
+    messages: {
+        width: "44px",
+        html: `<button class="ph-icon-btn ph-messages-btn" title="Messages" onclick="rsCycleMode()"><i data-lucide="message-square"></i></button>`
     }
 };
 
 function phLoadOrder() {
     try {
         const saved = JSON.parse(localStorage.getItem(PH_ORDER_KEY));
-        if (Array.isArray(saved) && saved.length === PH_DEFAULT_ORDER.length) return saved;
+        // validasi: panjang cocok DAN semua key masih dikenal (auto-heal kalau ada key lama yg dihapus, mis "more")
+        if (Array.isArray(saved) && saved.length === PH_DEFAULT_ORDER.length && saved.every(k => PH_ITEMS[k])) {
+            return saved;
+        }
     } catch (e) {}
     return [...PH_DEFAULT_ORDER];
 }
@@ -135,7 +136,6 @@ function phRender() {
         return `<div class="ph-item" data-key="${key}" draggable="true" ${widthStyle}>${def.html}</div>`;
     }).join("");
 
-    // baris atas = header lama (persis), baris bawah baru = tab workspace
     bar.innerHTML = `
         <div class="ph-header" id="phHeaderRow">${itemsHtml}</div>
         <div class="ws-tabbar" id="wsTabbar">
@@ -201,8 +201,22 @@ function phBindDrag() {
 }
 
 // ------------------------------------------------------
-// Action hooks — dispatch events so page-specific scripts
-// (auth.js, navigation.js, dll) can listen and react.
+// icon messages update (dipanggil rsidebar.js pas mode berubah)
+// ------------------------------------------------------
+
+function phUpdateMessagesIcon(rsMode) {
+    const btn = document.querySelector(".ph-messages-btn");
+    if (!btn) return;
+    const iconName = rsMode === "full" ? "message-square-dashed"
+        : rsMode === "icon" ? "message-square-x"
+        : "message-square";
+    btn.innerHTML = `<i data-lucide="${iconName}"></i>`;
+    if (window.lucide) lucide.createIcons();
+}
+window.phUpdateMessagesIcon = phUpdateMessagesIcon;
+
+// ------------------------------------------------------
+// Action hooks
 // ------------------------------------------------------
 
 function phToggleNav() {
@@ -228,10 +242,8 @@ function phAction(name) {
 function isInIframe() { return window.self !== window.top; }
 
 function initPageHeader() {
-    if (isInIframe()) return; // di dalam iframe shell, skip
+    if (isInIframe()) return;
 
-    // Dibuka langsung (bukan via shell) -> workspace.js belum ke-load
-    // di halaman ini -> lempar ke shell biar tab bar selalu ada.
     if (!window.Workspace) {
         const here = location.pathname.split("/").pop() || "";
         if (here && here !== "index.html") {
