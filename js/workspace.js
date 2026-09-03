@@ -135,8 +135,114 @@ const Workspace = (function () {
             </div>
         `).join("");
 
-        bindTabEvents();
         updateOverflowUI();
+        // jangan panggil bindTabEvents() di sini — listener sudah di-attach via delegation
+    }
+
+    // ======== EVENT DELEGATION — attach sekali ke scrollEl ========
+    function initTabEventDelegation() {
+        const scrollEl = document.getElementById("wsTabScroll");
+        if (!scrollEl) return;
+
+        // remove old listeners (kalau ada)
+        scrollEl.replaceWith(scrollEl.cloneNode(true));
+        const newScrollEl = document.getElementById("wsTabScroll");
+
+        // click: activate atau close
+        newScrollEl.addEventListener("click", e => {
+            const closeBtn = e.target.closest(".ws-tab-close");
+            if (closeBtn) {
+                closeTab(closeBtn.dataset.close);
+                return;
+            }
+            const tabEl = e.target.closest(".ws-tab");
+            if (tabEl && tabEl.dataset.dragged !== "1") {
+                activate(tabEl.dataset.id);
+            }
+        });
+
+        // drag: reorder atau scroll
+        newScrollEl.addEventListener("pointerdown", onTabPointerDown);
+        newScrollEl.addEventListener("mousedown", onTabPointerDown);
+    }
+
+    function onTabPointerDown(e) {
+        const tabEl = e.target.closest(".ws-tab");
+        if (!tabEl || e.target.closest(".ws-tab-close")) return;
+
+        const scrollEl = document.getElementById("wsTabScroll");
+        const startX = e.clientX, startY = e.clientY;
+        const startScrollLeft = scrollEl.scrollLeft;
+        let mode = null, edgeDir = 0, raf = null;
+
+        const dragEl = tabEl;
+        dragEl.classList.add("ws-dragging");
+        dragEl.dataset.dragged = "1";
+
+        function autoScroll() {
+            if (edgeDir !== 0) scrollEl.scrollLeft += edgeDir * 14;
+            raf = requestAnimationFrame(autoScroll);
+        }
+        autoScroll();
+
+        function onMove(ev) {
+            const dx = ev.clientX - startX, dy = ev.clientY - startY;
+
+            if (!mode) {
+                if (Math.abs(dy) > 12 && Math.abs(dy) >= Math.abs(dx)) {
+                    mode = "reorder";
+                } else if (Math.abs(dx) > 12) {
+                    mode = "scroll";
+                }
+            }
+
+            if (mode === "scroll") {
+                scrollEl.scrollLeft = startScrollLeft - dx;
+            } else if (mode === "reorder") {
+                const rect = scrollEl.getBoundingClientRect();
+                edgeDir = ev.clientX > rect.right - 44 ? 1 : ev.clientX < rect.left + 44 ? -1 : 0;
+
+                // cari tab yang di-hover di middle point
+                const overEl = document.elementFromPoint(ev.clientX, rect.top + rect.height / 2)?.closest(".ws-tab");
+                if (overEl && overEl !== dragEl) {
+                    const r = overEl.getBoundingClientRect();
+                    const before = ev.clientX < r.left + r.width / 2;
+                    const insertTarget = before ? overEl : overEl.nextSibling;
+                    if (dragEl.parentNode === overEl.parentNode) {
+                        overEl.parentNode.insertBefore(dragEl, insertTarget);
+                    }
+                }
+            }
+        }
+
+        function onUp() {
+            cancelAnimationFrame(raf);
+            document.removeEventListener("pointermove", onMove);
+            document.removeEventListener("pointerup", onUp);
+            document.removeEventListener("mousemove", onMove);
+            document.removeEventListener("mouseup", onUp);
+            dragEl.classList.remove("ws-dragging");
+            if (mode === "reorder") syncOrderFromDom();
+            updateOverflowUI();
+        }
+
+        document.addEventListener("pointermove", onMove);
+        document.addEventListener("pointerup", onUp);
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+    }
+
+    function init() {
+        document.getElementById("wsArrowLeft").onclick = () =>
+            document.getElementById("wsTabScroll").scrollBy({ left: -150, behavior: "smooth" });
+        document.getElementById("wsArrowRight").onclick = () =>
+            document.getElementById("wsTabScroll").scrollBy({ left: 150, behavior: "smooth" });
+        document.getElementById("wsKebab").onclick = openKebab;
+        document.getElementById("wsTabScroll").addEventListener("scroll", updateOverflowUI);
+        window.addEventListener("resize", render);
+
+        // === BARU: attach event delegation sekali saja ===
+        initTabEventDelegation();
     }
 
     function bindTabEvents() {
@@ -152,73 +258,6 @@ const Workspace = (function () {
             });
             el.addEventListener("pointerdown", onTabPointerDown);
         });
-    }
-
-    // --------------------------------------------------
-    // drag: vertical-first = reorder (with edge auto-scroll),
-    // horizontal-first = plain scroll
-    // --------------------------------------------------
-
-    function onTabPointerDown(e) {
-        if (e.target.closest(".ws-tab-close")) return;
-
-        const el = e.currentTarget;
-        const scrollEl = document.getElementById("wsTabScroll");
-        const startX = e.clientX, startY = e.clientY;
-        const startScrollLeft = scrollEl.scrollLeft;
-        let mode = null, edgeDir = 0, raf = null;
-
-        try { el.setPointerCapture?.(e.pointerId); } catch (err) {}
-
-        function autoScroll() {
-            if (edgeDir !== 0) scrollEl.scrollLeft += edgeDir * 14;
-            raf = requestAnimationFrame(autoScroll);
-        }
-        autoScroll();
-
-        function onMove(ev) {
-            const dx = ev.clientX - startX, dy = ev.clientY - startY;
-
-            if (!mode) {
-                if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx) * 1.5) {
-                    mode = "reorder"; el.classList.add("ws-dragging"); el.dataset.dragged = "1";
-                } else if (Math.abs(dx) > 12) {
-                    mode = "scroll"; el.dataset.dragged = "1";
-                }
-            }
-
-            if (mode === "scroll") {
-                scrollEl.scrollLeft = startScrollLeft - dx;
-            } else if (mode === "reorder") {
-                const rect = scrollEl.getBoundingClientRect();
-                edgeDir = ev.clientX > rect.right - 44 ? 1 : ev.clientX < rect.left + 44 ? -1 : 0;
-
-                const overEl = document.elementFromPoint(ev.clientX, rect.top + rect.height / 2)?.closest(".ws-tab");
-                if (overEl && overEl !== el) {
-                    const r = overEl.getBoundingClientRect();
-                    const before = ev.clientX < r.left + r.width / 2;
-                    overEl.parentNode.insertBefore(el, before ? overEl : overEl.nextSibling);
-                }
-            }
-        }
-
-        function onUp() {
-            cancelAnimationFrame(raf);
-            try { el.releasePointerCapture?.(e.pointerId); } catch (err) {}
-            el.removeEventListener("pointermove", onMove);
-            el.removeEventListener("pointerup", onUp);
-            el.removeEventListener("mousemove", onMove);
-            el.removeEventListener("mouseup", onUp);
-            el.classList.remove("ws-dragging");
-            if (mode === "reorder") syncOrderFromDom();
-            updateOverflowUI();
-        }
-
-        el.addEventListener("pointermove", onMove);
-        el.addEventListener("pointerup", onUp);
-        // fallback: kalau browser pointerEvent gak support
-        el.addEventListener("mousemove", onMove);
-        el.addEventListener("mouseup", onUp);
     }
 
     function syncOrderFromDom() {
@@ -292,20 +331,6 @@ const Workspace = (function () {
     function closeKebab() {
         document.getElementById("wsKebabPopup")?.remove();
         document.removeEventListener("click", onOutsideKebab);
-    }
-
-    // --------------------------------------------------
-    // init
-    // --------------------------------------------------
-
-    function init() {
-        document.getElementById("wsArrowLeft").onclick = () =>
-            document.getElementById("wsTabScroll").scrollBy({ left: -150, behavior: "smooth" });
-        document.getElementById("wsArrowRight").onclick = () =>
-            document.getElementById("wsTabScroll").scrollBy({ left: 150, behavior: "smooth" });
-        document.getElementById("wsKebab").onclick = openKebab;
-        document.getElementById("wsTabScroll").addEventListener("scroll", updateOverflowUI);
-        window.addEventListener("resize", render);
     }
 
     return { init, openTab, activate, closeTab, closeAll };
