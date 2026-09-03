@@ -323,9 +323,8 @@ function sbRenderItem(it, groupId) {
 
     return `
         <a class="sb-item ${active ? "sb-active" : ""} ${hidden ? "sb-hidden-el" : ""}"
-           href="${sbCustomizing ? "javascript:void(0)" : it.href}"
-           onclick="return sbHandleItemClick(event,'${it.href}',${JSON.stringify(it.label)},'${it.id}')"
-           data-item-id="${it.id}" data-group-id="${groupId}" draggable="${!sbCustomizing}" title="${it.label}">
+            href="${sbCustomizing ? "javascript:void(0)" : it.href}"
+            data-item-id="${it.id}" data-group-id="${groupId}" draggable="${!sbCustomizing}" title="${it.label}">
             ${sbCustomizing ? `<span class="sb-drag-handle">${sbIconSvg("grip-vertical")}</span>` : ""}
             ${sbCustomizing ? `<button class="sb-icon-btn-mini" data-icon-target="item:${it.id}">${sbIconSvg(it.icon)}</button>` : sbIconSvg(it.icon)}
             ${sbCustomizing
@@ -337,12 +336,16 @@ function sbRenderItem(it, groupId) {
 }
 
 // sidebar click -> open/activate a workspace tab
-function sbHandleItemClick(e, href, label, itemId) {
-    if (sbCustomizing) return false;
-    if (!window.Workspace) return true; // fallback: standalone page, navigate normally
-    e.preventDefault();
-    Workspace.openTab({ title: label, url: href, page: itemId });
-    return false;
+function sbBindItemClicks() {
+    document.querySelectorAll(".sb-item").forEach(el => {
+        el.addEventListener("click", (e) => {
+            if (sbCustomizing) return;
+            const target = sbFindTarget("item:" + el.dataset.itemId);
+            if (!target || !window.Workspace) return; // no Workspace -> fallback ke navigasi href normal
+            e.preventDefault();
+            Workspace.openTab({ title: target.label, url: target.href, page: target.id });
+        });
+    });
 }
 
 // called by Workspace.activate() so sidebar highlight follows the active tab
@@ -483,6 +486,7 @@ function sbBindResize() {
             sidebar.style.width = w + "px";
             sbApplyContentPush();
             sbApplyLabelFade();
+            sbBindItemClicks();
         };
         const onUp = () => {
             sidebar.classList.remove("sb-resizing");
