@@ -1,6 +1,7 @@
 // ======================================================
 // workspace.js — tab manager, iframe host per tab
-// FIXED: Chrome-style drag with floating ghost preview
+// FIXED: Free-float ghost drag (can leave tab bar area)
+//        Drop outside tab bar → cancel (snap back)
 // ======================================================
 
 const Workspace = (function () {
@@ -147,7 +148,8 @@ const Workspace = (function () {
     }
 
     // ==========================================================
-    // CHROME-STYLE DRAG WITH FLOATING GHOST PREVIEW
+    // FREE-FLOAT GHOST DRAG
+    // Ghost bisa ke area mana saja. Drop di luar tab bar = cancel.
     // ==========================================================
     function onTabPointerDown(e) {
         const tabEl = e.target.closest(".ws-tab");
@@ -156,6 +158,7 @@ const Workspace = (function () {
         e.preventDefault();
 
         const scrollEl = document.getElementById("wsTabScroll");
+        const tabbar = document.getElementById("wsTabbar");
         const startX = e.clientX, startY = e.clientY;
         const startScrollLeft = scrollEl.scrollLeft;
         let mode = null, edgeDir = 0, raf = null;
@@ -163,6 +166,10 @@ const Workspace = (function () {
         const dragEl = tabEl;
         dragEl.classList.add("ws-dragging");
         dragEl.dataset.dragged = "1";
+
+        // --- simpan posisi asli untuk restore kalau drop invalid ---
+        const originalIndex = tabs.findIndex(t => t.id === dragEl.dataset.id);
+        const originalNextId = tabs[originalIndex + 1]?.id || null;
 
         // --- GHOST: clone tab untuk mengikuti pointer ---
         let ghost = null;
@@ -177,10 +184,8 @@ const Workspace = (function () {
             ghost.style.top = rect.top + "px";
             ghost.style.width = rect.width + "px";
             ghost.style.height = rect.height + "px";
-            ghost.style.zIndex = "1000";
-            ghost.style.pointerEvents = "none"; // biar mouse events lewat ke element di bawah
-            ghost.style.opacity = "0.92";
-            ghost.style.transition = "none";
+            ghost.style.zIndex = "10000";        // di atas semua: header, sidebar, content
+            ghost.style.pointerEvents = "none";
             document.body.appendChild(ghost);
             ghostOffsetX = startX - rect.left;
             ghostOffsetY = startY - rect.top;
@@ -219,7 +224,7 @@ const Workspace = (function () {
                     if (mode === "reorder") {
                         dragEl.classList.add("ws-reordering");
                         createGhost();
-                        dragEl.style.opacity = "0.3"; // original tab jadi transparan
+                        dragEl.style.opacity = "0.25";
                     }
                 }
             }
@@ -232,8 +237,7 @@ const Workspace = (function () {
                 const rect = scrollEl.getBoundingClientRect();
                 edgeDir = ev.clientX > rect.right - 44 ? 1 : ev.clientX < rect.left + 44 ? -1 : 0;
 
-                // --- cari tab di bawah ghost ---
-                // Sembunyikan ghost sementara biar elementFromPoint bisa lihat tab di bawahnya
+                // --- cari tab di bawah ghost (hide ghost sementara) ---
                 if (ghost) ghost.style.visibility = "hidden";
                 const overEl = document.elementFromPoint(ev.clientX, rect.top + rect.height / 2)?.closest(".ws-tab");
                 if (ghost) ghost.style.visibility = "visible";
@@ -249,7 +253,7 @@ const Workspace = (function () {
             }
         }
 
-        function onUp() {
+        function onUp(ev) {
             cancelAnimationFrame(raf);
             document.removeEventListener("pointermove", onMove);
             document.removeEventListener("pointerup", onUp);
@@ -259,10 +263,29 @@ const Workspace = (function () {
             dragEl.classList.remove("ws-dragging", "ws-reordering");
             dragEl.style.opacity = "";
             dragEl.dataset.dragged = "0";
-
             removeGhost();
 
-            if (mode === "reorder") syncOrderFromDom();
+            if (mode === "reorder") {
+                // --- cek apakah drop di dalam area tab bar ---
+                const tabbarRect = tabbar.getBoundingClientRect();
+                const inTabbar = ev.clientX >= tabbarRect.left - 20
+                              && ev.clientX <= tabbarRect.right + 20
+                              && ev.clientY >= tabbarRect.top - 40
+                              && ev.clientY <= tabbarRect.bottom + 40;
+                // toleransi 20-40px biar drop yang "hampir" di tab bar tetap valid
+
+                if (inTabbar) {
+                    syncOrderFromDom();  // save new order
+                } else {
+                    // --- DROP INVALID: snap back ke posisi semula ---
+                    const scrollEl2 = document.getElementById("wsTabScroll");
+                    const nextEl = originalNextId
+                        ? scrollEl2.querySelector(`.ws-tab[data-id="${originalNextId}"]`)
+                        : null;
+                    scrollEl2.insertBefore(dragEl, nextEl);
+                    // tabs array belum di-sync, jadi tidak perlu apa-apa
+                }
+            }
             updateOverflowUI();
         }
 
